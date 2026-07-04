@@ -16,12 +16,12 @@ export class InventoryController {
   }
 
   @Post('products')
-  createProduct(@Body() payload: CreateProductDto) {
+  postProduct(@Body() payload: CreateProductDto) {
     return this.createProduct.execute(payload);
   }
 
   @Post('stock/reserve')
-  reserveStock(@Body() payload: StockMovementDto) {
+  postReserveStock(@Body() payload: StockMovementDto) {
     return this.reserveStock.execute(payload);
   }
 }
