@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "importHelpers": true,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2022",
+    "customConditions": ["@is-kontrol/source"],
+    "baseUrl": ".",
+    "paths": {
+      "@is-kontrol/inventory-contracts": ["libs/inventory/contracts/src/index.ts"],
+      "@is-kontrol/sales-contracts": ["libs/sales/contracts/src/index.ts"],
+      "@is-kontrol/core-database": ["libs/core/database/src/index.ts"],
+      "@is-kontrol/core-security": ["libs/core/security/src/index.ts"],
+      "@is-kontrol/core-testing": ["libs/core/testing/src/index.ts"]
+    }
+  }
+}
