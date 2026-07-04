@@ -46,6 +46,73 @@ All lib imports resolve via `tsconfig.base.json` path aliases:
 - `@is-kontrol/core-security` → `libs/core/security/src/index.ts`
 - `@is-kontrol/core-testing` → `libs/core/testing/src/index.ts`
 
+## Folder & coding standards
+
+### Service folder layout (inventory-service, sales-service)
+
+```
+src/
+├── domain/entities/          # Plain entity classes (no ORM decorators)
+├── infrastructure/           # Kafka clients, publishers, consumers, config
+├── use-cases/                # Application logic, one class per use case
+├── main.ts                   # Bootstrap (NestFactory + connectMicroservice)
+├── *.controller.ts           # HTTP endpoints
+└── *.module.ts               # NestJS module composition
+```
+
+### BFF folder layout (mobile-bff)
+
+```
+src/
+├── modules/                  # Proxy modules (controller + service + module per domain)
+├── main.ts
+└── mobile-bff.module.ts
+```
+
+### File & class naming
+
+| Layer | File | Class |
+|-------|------|-------|
+| Entity | `*.entity.ts` | `XxxEntity` |
+| Use case | `*.use-case.ts` | `XxxUseCase` |
+| HTTP controller | `*.controller.ts` | `XxxController` |
+| Kafka consumer | `*-event.consumer.ts` | `XxxEventConsumer` |
+| Kafka publisher | `*-event.publisher.ts` | `XxxEventPublisher` |
+| Infrastructure service | `kafka-*.service.ts` | `XxxService` |
+| Kafka config | `kafka.config.ts` | — (plain object) |
+| Consumed event schemas | `consumed-*.events.ts` | `XxxEvent` (interface) |
+| Own event schemas | `*.events.ts` | `XxxEvent` (interface) |
+| NestJS module | `*.module.ts` | `XxxModule` |
+| DTOs (in contracts) | `*.dto.ts` | `XxxDto` (interface) |
+| Kafka topics (in contracts) | `kafka-topics.ts` | `XxxKafkaTopics` (const) |
+
+### Import conventions
+
+- **Service code**: `import type { X } from '...'` for type-only imports; extensionless relative paths
+- **Contracts lib barrel exports**: use `.js` extensions (`from './dtos/create-product.dto.js'`)
+- Always use `import type` when importing DTOs, event interfaces, or status types into services
+
+### Key patterns
+
+- **IDs**: `crypto.randomUUID()` -- no UUID library dependency
+- **Constructor injection**: all dependencies via `constructor(private readonly dep: Type)`; no `@Inject()` except for the Kafka producer token
+- **DTOs**: interfaces living in contracts libs, imported as `import type`
+- **Events**: every event interface has `occurredAt: string`; consumed event schemas are local copies (not imported from the producing service's contracts)
+- **Topics**: defined as `as const` objects with a companion union type
+- **Publishers**: each event method accepts `Omit<Event, 'occurredAt'>` and appends the timestamp via a private `withTimestamp()` helper
+- **Language**: Turkish log messages in infrastructure layer; English everywhere else
+
+## Elegant Object assumptions
+
+- **No static methods or properties** -- everything is instance-level. Use `new` for all construction
+- **No getters/setters** -- public fields (`readonly` for identity, mutable for state). A `get` accessor is only acceptable for truly derived/computed values that require no external input (e.g. `get totalQuantity()`)
+- **Constructor-only initialization** -- all object state is set via constructor parameters. No post-construction mutation of identity fields
+- **`public readonly`** for identity/immutable fields (`id`, `createdAt`, `orderNumber`, `quoteNumber`); mutable for state (`status`, `quantity`, `subtotal`)
+- **Plain classes, no ORM decorators** -- domain entities are pure TypeScript classes. No `@Entity()`, no `@Column()`. Persistence layer will be separate
+- **Concrete classes for domain objects** -- use `class` not `interface` for entities. Interfaces are for DTOs, events, and contracts
+- **Constructor-based DI** -- no service locators, no `@Inject()` beyond the Kafka `ClientKafka` token
+- **`import type` for type-only imports** -- keeps the runtime module graph clean
+
 ## Local infrastructure (required for inventory & sales services)
 
 ```sh
@@ -61,6 +128,86 @@ Services reference `KAFKA_BROKER` env var (defaults to `localhost:9092`). Ports 
 |-----------|--------|
 | inventory → kafka | `product.created`, `stock.created`, `stock.moved`, `stock.reserved`, `stock.released` |
 | sales → kafka | `quote.created`, `quote.updated`, `quote.sent`, `quote.accepted`, `quote.rejected`, `quote.expired`, `order.created`, `order.confirmed`, `order.shipped`, `order.cancelled`, `order.completed` |
+
+## Result pattern
+
+Use cases return `Result<T, E>` -- a discriminated union of `Success` and `Failure` -- instead of throwing or returning ad-hoc objects. This makes error paths explicit in the type signature.
+
+### Type (will live in `libs/core/result/`)
+
+```ts
+// libs/core/result/src/result.ts
+
+export abstract class Result<T, E> {
+  abstract readonly isSuccess: boolean;
+  abstract readonly isFailure: boolean;
+  abstract match<U>(onSuccess: (value: T) => U, onFailure: (error: E) => U): U;
+}
+
+export class Success<T> extends Result<T, never> {
+  readonly isSuccess = true;
+  readonly isFailure = false;
+
+  constructor(public readonly value: T) {
+    super();
+  }
+
+  match<U>(onSuccess: (value: T) => U, _onFailure: (error: never) => U): U {
+    return onSuccess(this.value);
+  }
+}
+
+export class Failure<E> extends Result<never, E> {
+  readonly isSuccess = false;
+  readonly isFailure = true;
+
+  constructor(public readonly error: E) {
+    super();
+  }
+
+  match<U>(_onSuccess: (value: never) => U, onFailure: (error: E) => U): U {
+    return onFailure(this.error);
+  }
+}
+
+export type DomainError = { code: string; message: string };
+```
+
+### Usage in use cases
+
+```ts
+// Before (current)
+async execute(dto: CreateProductDto): Promise<ProductResponseDto> {
+  // ... returns plain object or throws
+}
+
+// After (Result pattern)
+async execute(dto: CreateProductDto): Promise<Result<ProductResponseDto, DomainError>> {
+  // ...
+  return new Success(responseDto);
+  // or: return new Failure({ code: 'VALIDATION_ERROR', message: '...' });
+}
+```
+
+### Usage in controllers
+
+```ts
+@Post('products')
+async postProduct(@Body() payload: CreateProductDto) {
+  const result = await this.createProduct.execute(payload);
+  return result.match(
+    (product) => ({ data: product }),
+    (error) => { throw new HttpException(error, HttpStatus.BAD_REQUEST); }
+  );
+}
+```
+
+### Rules
+
+- **No static factories** -- use `new Success(data)`, `new Failure(error)`. No `Result.ok()` or `Result.err()`
+- **Use cases return `Result`** -- never throw from use case code. All business failures become `Failure` values
+- **Controllers bridge to HTTP** -- the controller `match()` maps `Success` to a 2xx response and `Failure` to an HTTP exception
+- **DomainError is a value object** -- `{ code: string, message: string }`. Define domain-specific error codes per use case
 
 ## Gotchas
 
