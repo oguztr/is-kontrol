@@ -4,7 +4,7 @@ import { StockMovementEntity } from '../domain/entities/stock-movement.entity';
 import { InventoryEventPublisher } from '../infrastructure/inventory-event.publisher';
 
 @Injectable()
-export class ReduceStockUseCase {
+export class ReleaseStockUseCase {
   constructor(private readonly events: InventoryEventPublisher) {}
 
   async execute(dto: StockMovementDto) {
@@ -12,21 +12,20 @@ export class ReduceStockUseCase {
       crypto.randomUUID(),
       dto.productId,
       dto.warehouseId,
-      'OUT',
+      'RELEASE',
       dto.quantity,
       dto.referenceType as StockMovementEntity['referenceType'],
       dto.referenceId,
       new Date()
     );
 
-    await this.events.stockMoved({
+    await this.events.stockReleased({
       productId: movement.productId,
       warehouseId: movement.warehouseId,
-      type: movement.type,
       quantity: movement.quantity,
       referenceId: movement.referenceId,
     });
 
-    return { reduced: true, movementId: movement.id };
+    return { released: true, movementId: movement.id };
   }
 }
