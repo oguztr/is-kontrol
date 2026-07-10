@@ -3,14 +3,17 @@
   "compileOnSave": false,
   "files": [],
   "references": [
-    { "path": "./apps/mobile-app" },
-    { "path": "./apps/mobile-bff" },
-    { "path": "./apps/inventory-service" },
-    { "path": "./apps/sales-service" },
-    { "path": "./libs/inventory/contracts" },
-    { "path": "./libs/sales/contracts" },
-    { "path": "./libs/core/database" },
-    { "path": "./libs/core/security" },
-    { "path": "./libs/core/testing" }
+    {
+      "path": "./apps/mobile-app"
+    },
+    {
+      "path": "./apps/mobile-bff"
+    },
+    {
+      "path": "./apps/inventory-service"
+    },
+    {
+      "path": "./apps/sales-service"
+    }
   ]
 }

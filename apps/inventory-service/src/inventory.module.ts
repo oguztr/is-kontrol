@@ -1,22 +1,22 @@
-import { Module } from '@nestjs/common';
-import { InventoryController } from './inventory.controller';
-import { OrderEventConsumer } from './infrastructure/order-event.consumer';
-import { KafkaModule } from './infrastructure/kafka.module';
-import { ReserveStockUseCase } from './use-cases/reserve-stock.use-case';
-import { ReduceStockUseCase } from './use-cases/reduce-stock.use-case';
-import { ReleaseStockUseCase } from './use-cases/release-stock.use-case';
-import { CreateProductUseCase } from './use-cases/create-product.use-case';
-import { HandleOrderEventUseCase } from './use-cases/handle-order-event.use-case';
+import { Module } from "@nestjs/common";
+import { ProductsController } from "./interface/http/controllers/products.controller";
+import { WarehousesController } from "./interface/http/controllers/warehouses.controller";
+import { UnitsController } from "./interface/http/controllers/units.controller";
+import { StockDocumentsController } from "./interface/http/controllers/stock-documents.controller";
+import { StockMovementsController } from "./interface/http/controllers/stock-movements.controller";
+import { StockBalancesController } from "./interface/http/controllers/stock-balances.controller";
+import { KafkaModule } from "./infrastructure/messaging/kafka/kafka.module";
 
 @Module({
   imports: [KafkaModule],
-  controllers: [InventoryController, OrderEventConsumer],
-  providers: [
-    ReserveStockUseCase,
-    ReduceStockUseCase,
-    ReleaseStockUseCase,
-    CreateProductUseCase,
-    HandleOrderEventUseCase,
+  controllers: [
+    ProductsController,
+    WarehousesController,
+    UnitsController,
+    StockDocumentsController,
+    StockMovementsController,
+    StockBalancesController,
   ],
+  providers: [],
 })
 export class InventoryModule {}

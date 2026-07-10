@@ -13,7 +13,7 @@
   },
   "include": [
     "src/**/*.ts"
-  ],
+, "drizzle.config.ts"  ],
   "exclude": [
     "out-tsc",
     "dist",
@@ -25,9 +25,5 @@
     "eslint.config.cjs",
     "eslint.config.mjs"
   ],
-  "references": [
-    {
-      "path": "../../libs/inventory/contracts/tsconfig.lib.json"
-    }
-  ]
+  "references": []
 }
