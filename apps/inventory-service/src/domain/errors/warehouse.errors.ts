@@ -5,9 +5,14 @@ export type WarehouseError =
       companyId: string;
       warehouseCode: string;
     }
-  | { code: "WAREHOUSE_INACTIVE"; warehouseId: string };
+  | { code: "WAREHOUSE_INACTIVE"; warehouseId: string }
+  | { code: "COMPANY_NOT_FOUND"; companyId: string }
+  | { code: "COMPANY_INACTIVE"; companyId: string }
+  | { code: "WAREHOUSE_HAS_STOCK"; warehouseId: string };
 
 export const WarehouseErrors = {
+  companyNotFound: (companyId: string): WarehouseError => ({ code: "COMPANY_NOT_FOUND", companyId }),
+  companyInactive: (companyId: string): WarehouseError => ({ code: "COMPANY_INACTIVE", companyId }),
   notFound: (warehouseId: string): WarehouseError => ({
     code: "WAREHOUSE_NOT_FOUND",
     warehouseId,
@@ -26,4 +31,5 @@ export const WarehouseErrors = {
     code: "WAREHOUSE_INACTIVE",
     warehouseId,
   }),
+  hasStock: (warehouseId: string): WarehouseError => ({ code: "WAREHOUSE_HAS_STOCK", warehouseId }),
 };

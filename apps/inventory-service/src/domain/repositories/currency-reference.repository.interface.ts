@@ -11,4 +11,5 @@ export interface ICurrencyReferenceRepository {
   findById(id: string): Promise<CurrencyReference | null>;
   findByCode(code: string): Promise<CurrencyReference | null>;
   upsert(reference: CurrencyReference): Promise<void>;
+  setActive(id: string, isActive: boolean, syncedAt: Date): Promise<void>;
 }

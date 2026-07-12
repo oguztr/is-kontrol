@@ -8,6 +8,7 @@ import { UnitsController } from "./interface/http/controllers/units.controller";
 import { StockDocumentsController } from "./interface/http/controllers/stock-documents.controller";
 import { StockMovementsController } from "./interface/http/controllers/stock-movements.controller";
 import { StockBalancesController } from "./interface/http/controllers/stock-balances.controller";
+import { ProductCategoriesController } from "./interface/http/controllers/product-categories.controller";
 import { KafkaModule, KAFKA_CLIENT } from "./infrastructure/messaging/kafka/kafka.module";
 import { writeDb, DrizzleTransactionHost } from "./infrastructure/persistence/drizzle/drizzle.provider";
 import { DrizzleUnitOfWork } from "./infrastructure/persistence/drizzle/unit-of-work";
@@ -22,6 +23,9 @@ import { DrizzleCompanyReferenceRepository } from "./infrastructure/persistence/
 import { DrizzleCurrencyReferenceRepository } from "./infrastructure/persistence/drizzle/repositories/currency-reference.repository";
 import { DrizzleBusinessPartnerReferenceRepository } from "./infrastructure/persistence/drizzle/repositories/business-partner-reference.repository";
 import { DrizzleProductDependencyRepository } from "./infrastructure/persistence/drizzle/repositories/product-dependency.repository";
+import { DrizzleUnitRepository } from "./infrastructure/persistence/drizzle/repositories/unit.repository";
+import { DrizzleExchangeRateReferenceRepository } from "./infrastructure/persistence/drizzle/repositories/exchange-rate-reference.repository";
+import { DrizzleProductCategoryRepository } from "./infrastructure/persistence/drizzle/repositories/product-category.repository";
 import { KafkaEventPublisher } from "./infrastructure/messaging/kafka/kafka-event-publisher";
 import { OutboxPublisherWorker } from "./infrastructure/messaging/kafka/outbox-publisher.worker";
 import { MessagingWorkersLifecycle } from "./infrastructure/messaging/kafka/messaging-workers.lifecycle";
@@ -35,6 +39,17 @@ import { CompanyCreatedHandler } from "./application/event-handlers/company-crea
 import { CurrencyCreatedHandler } from "./application/event-handlers/currency-created.handler";
 import { SupplierCreatedHandler } from "./application/event-handlers/supplier-created.handler";
 import { CustomerCreatedHandler } from "./application/event-handlers/customer-created.handler";
+import { ExchangeRateUpdatedHandler } from "./application/event-handlers/exchange-rate-updated.handler";
+import { BusinessPartnerSyncedHandler } from "./application/event-handlers/business-partner-synced.handler";
+import {
+  BusinessPartnerReferenceStatusChangedHandler,
+  CompanyReferenceStatusChangedHandler,
+  CurrencyReferenceStatusChangedHandler,
+} from "./application/event-handlers/reference-status-changed.handler";
+import { UnitManagementUseCase } from "./application/use-cases/unit-management.use-case";
+import { WarehouseManagementUseCase } from "./application/use-cases/warehouse-management.use-case";
+import { ProductCategoryManagementUseCase } from "./application/use-cases/product-category-management.use-case";
+import { ProductManagementUseCase } from "./application/use-cases/product-management.use-case";
 
 /* Application katmanı framework'ten bağımsız (decorator'sız) sınıflardan
  * oluştuğu için tüm bağımlılık grafiği burada factory provider'larla elle
@@ -45,6 +60,7 @@ import { CustomerCreatedHandler } from "./application/event-handlers/customer-cr
   controllers: [
     InventoryController,
     ProductsController,
+    ProductCategoriesController,
     WarehousesController,
     UnitsController,
     StockDocumentsController,
@@ -140,6 +156,21 @@ import { CustomerCreatedHandler } from "./application/event-handlers/customer-cr
         new DrizzleProductDependencyRepository(session),
       inject: [DrizzleTransactionHost],
     },
+    {
+      provide: DrizzleUnitRepository,
+      useFactory: (session: DrizzleTransactionHost) => new DrizzleUnitRepository(session),
+      inject: [DrizzleTransactionHost],
+    },
+    {
+      provide: DrizzleExchangeRateReferenceRepository,
+      useFactory: (session: DrizzleTransactionHost) => new DrizzleExchangeRateReferenceRepository(session),
+      inject: [DrizzleTransactionHost],
+    },
+    {
+      provide: DrizzleProductCategoryRepository,
+      useFactory: (session: DrizzleTransactionHost) => new DrizzleProductCategoryRepository(session),
+      inject: [DrizzleTransactionHost],
+    },
 
     // --- event publisher (transactional outbox'a yazar) ---
     {
@@ -150,6 +181,51 @@ import { CustomerCreatedHandler } from "./application/event-handlers/customer-cr
     },
 
     // --- command handler'lar ---
+    {
+      provide: UnitManagementUseCase,
+      useFactory: (
+        repository: DrizzleUnitRepository,
+        companies: DrizzleCompanyReferenceRepository,
+        unitOfWork: DrizzleUnitOfWork,
+      ) => new UnitManagementUseCase(repository, companies, unitOfWork),
+      inject: [DrizzleUnitRepository, DrizzleCompanyReferenceRepository, DrizzleUnitOfWork],
+    },
+    {
+      provide: WarehouseManagementUseCase,
+      useFactory: (
+        repository: DrizzleWarehouseRepository,
+        companies: DrizzleCompanyReferenceRepository,
+        unitOfWork: DrizzleUnitOfWork,
+      ) => new WarehouseManagementUseCase(repository, companies, unitOfWork),
+      inject: [DrizzleWarehouseRepository, DrizzleCompanyReferenceRepository, DrizzleUnitOfWork],
+    },
+    {
+      provide: ProductCategoryManagementUseCase,
+      useFactory: (
+        repository: DrizzleProductCategoryRepository,
+        companies: DrizzleCompanyReferenceRepository,
+        unitOfWork: DrizzleUnitOfWork,
+      ) => new ProductCategoryManagementUseCase(repository, companies, unitOfWork),
+      inject: [DrizzleProductCategoryRepository, DrizzleCompanyReferenceRepository, DrizzleUnitOfWork],
+    },
+    {
+      provide: ProductManagementUseCase,
+      useFactory: (
+        products: DrizzleProductRepository,
+        dependencies: DrizzleProductDependencyRepository,
+        currencies: DrizzleCurrencyReferenceRepository,
+        companies: DrizzleCompanyReferenceRepository,
+        publisher: KafkaEventPublisher,
+        unitOfWork: DrizzleUnitOfWork,
+      ) => new ProductManagementUseCase(
+        products, dependencies, currencies, companies, publisher, unitOfWork,
+      ),
+      inject: [
+        DrizzleProductRepository, DrizzleProductDependencyRepository,
+        DrizzleCurrencyReferenceRepository, DrizzleCompanyReferenceRepository,
+        KafkaEventPublisher, DrizzleUnitOfWork,
+      ],
+    },
     {
       provide: CreateProductHandler,
       useFactory: (
@@ -260,6 +336,31 @@ import { CustomerCreatedHandler } from "./application/event-handlers/customer-cr
         new CustomerCreatedHandler(repository),
       inject: [DrizzleBusinessPartnerReferenceRepository],
     },
+    {
+      provide: ExchangeRateUpdatedHandler,
+      useFactory: (repository: DrizzleExchangeRateReferenceRepository) => new ExchangeRateUpdatedHandler(repository),
+      inject: [DrizzleExchangeRateReferenceRepository],
+    },
+    {
+      provide: BusinessPartnerSyncedHandler,
+      useFactory: (repository: DrizzleBusinessPartnerReferenceRepository) => new BusinessPartnerSyncedHandler(repository),
+      inject: [DrizzleBusinessPartnerReferenceRepository],
+    },
+    {
+      provide: CompanyReferenceStatusChangedHandler,
+      useFactory: (repository: DrizzleCompanyReferenceRepository) => new CompanyReferenceStatusChangedHandler(repository),
+      inject: [DrizzleCompanyReferenceRepository],
+    },
+    {
+      provide: CurrencyReferenceStatusChangedHandler,
+      useFactory: (repository: DrizzleCurrencyReferenceRepository) => new CurrencyReferenceStatusChangedHandler(repository),
+      inject: [DrizzleCurrencyReferenceRepository],
+    },
+    {
+      provide: BusinessPartnerReferenceStatusChangedHandler,
+      useFactory: (repository: DrizzleBusinessPartnerReferenceRepository) => new BusinessPartnerReferenceStatusChangedHandler(repository),
+      inject: [DrizzleBusinessPartnerReferenceRepository],
+    },
 
     // --- arka plan worker'ları ---
     {
@@ -294,15 +395,37 @@ import { CustomerCreatedHandler } from "./application/event-handlers/customer-cr
         currencyCreatedHandler: CurrencyCreatedHandler,
         supplierCreatedHandler: SupplierCreatedHandler,
         customerCreatedHandler: CustomerCreatedHandler,
+        exchangeRateUpdatedHandler: ExchangeRateUpdatedHandler,
+        businessPartnerSyncedHandler: BusinessPartnerSyncedHandler,
+        companyStatusHandler: CompanyReferenceStatusChangedHandler,
+        currencyStatusHandler: CurrencyReferenceStatusChangedHandler,
+        partnerStatusHandler: BusinessPartnerReferenceStatusChangedHandler,
       ) =>
         new ConsumedEventDispatcher(
           unitOfWork,
           processedEventRepository,
           new Map<string, IConsumedEventHandler>([
             ["company.created", companyCreatedHandler],
+            ["company.updated", companyCreatedHandler],
+            ["company.activated", companyStatusHandler],
+            ["company.deactivated", companyStatusHandler],
             ["currency.created", currencyCreatedHandler],
+            ["currency.updated", currencyCreatedHandler],
+            ["currency.activated", currencyStatusHandler],
+            ["currency.deactivated", currencyStatusHandler],
+            ["exchange-rate.updated", exchangeRateUpdatedHandler],
             ["supplier.created", supplierCreatedHandler],
+            ["supplier.updated", supplierCreatedHandler],
+            ["supplier.activated", partnerStatusHandler],
+            ["supplier.deactivated", partnerStatusHandler],
             ["customer.created", customerCreatedHandler],
+            ["customer.updated", customerCreatedHandler],
+            ["customer.activated", partnerStatusHandler],
+            ["customer.deactivated", partnerStatusHandler],
+            ["business-partner.created", businessPartnerSyncedHandler],
+            ["business-partner.updated", businessPartnerSyncedHandler],
+            ["business-partner.activated", partnerStatusHandler],
+            ["business-partner.deactivated", partnerStatusHandler],
           ]),
         ),
       inject: [
@@ -312,6 +435,11 @@ import { CustomerCreatedHandler } from "./application/event-handlers/customer-cr
         CurrencyCreatedHandler,
         SupplierCreatedHandler,
         CustomerCreatedHandler,
+        ExchangeRateUpdatedHandler,
+        BusinessPartnerSyncedHandler,
+        CompanyReferenceStatusChangedHandler,
+        CurrencyReferenceStatusChangedHandler,
+        BusinessPartnerReferenceStatusChangedHandler,
       ],
     },
   ],

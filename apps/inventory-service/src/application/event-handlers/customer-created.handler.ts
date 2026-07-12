@@ -9,6 +9,8 @@ export class CustomerCreatedHandler implements IConsumedEventHandler {
       id: string;
       companyId: string;
       name: string;
+      isActive: boolean;
+      occurredAt: Date;
     };
 
     await this.businessPartnerReferenceRepository.upsert({
@@ -16,8 +18,8 @@ export class CustomerCreatedHandler implements IConsumedEventHandler {
       companyId: payload.companyId,
       name: payload.name,
       type: 'CUSTOMER',
-      isActive: true,
-      syncedAt: new Date(),
+      isActive: payload.isActive,
+      syncedAt: payload.occurredAt,
     });
   }
 }

@@ -12,6 +12,7 @@ export const createProductSchema = z.object({
   sku: z.string().min(1).max(100),
   name: z.string().min(1).max(255),
   baseUnitId: z.string().uuid(),
+  barcode: z.string().trim().min(1).max(100).nullish(),
   description: z.string().max(2000).nullish(),
   categoryId: z.string().uuid().nullish(),
   defaultCurrencyId: z.string().uuid().nullish(),

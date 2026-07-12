@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, lte } from 'drizzle-orm';
 import type {
   CurrencyReference,
   ICurrencyReferenceRepository,
@@ -43,7 +43,14 @@ export class DrizzleCurrencyReferenceRepository implements ICurrencyReferenceRep
           isActive: reference.isActive,
           syncedAt: reference.syncedAt,
         },
+        setWhere: lte(currencyReferences.syncedAt, reference.syncedAt),
       });
+  }
+
+  async setActive(id: string, isActive: boolean, syncedAt: Date): Promise<void> {
+    await this.db.update(currencyReferences).set({ isActive, syncedAt }).where(and(
+      eq(currencyReferences.id, id), lte(currencyReferences.syncedAt, syncedAt),
+    ));
   }
 
   private toDto(row: typeof currencyReferences.$inferSelect): CurrencyReference {

@@ -1,8 +1,18 @@
-import type { IConsumedEventHandler } from './consumed-event'
+import type { IExchangeRateReferenceRepository } from '../../domain/repositories/exchange-rate-reference.repository.interface'
+import type { ConsumedEvent, IConsumedEventHandler } from './consumed-event'
 
-// TODO: inject exchange rate repository when implemented
 export class ExchangeRateUpdatedHandler implements IConsumedEventHandler {
-  async handle(): Promise<void> {
-    // upsert into exchange_rate_references via repository
+  constructor(private readonly repository: IExchangeRateReferenceRepository) {}
+
+  async handle(event: ConsumedEvent): Promise<void> {
+    const payload = event.payload as {
+      id: string; companyId: string; currencyCode: string; rate: string;
+      effectiveAt: Date; occurredAt: Date;
+    };
+    await this.repository.upsert({
+      id: payload.id, companyId: payload.companyId,
+      currencyCode: payload.currencyCode, rate: payload.rate,
+      effectiveAt: payload.effectiveAt, syncedAt: payload.occurredAt,
+    });
   }
 }

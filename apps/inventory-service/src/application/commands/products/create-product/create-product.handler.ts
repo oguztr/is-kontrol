@@ -46,14 +46,14 @@ export class CreateProductHandler {
         return ProductErrors.baseUnitNotFound(command.baseUnitId);
       }
 
-      if (
-        command.categoryId &&
-        !(await this.productDependencyRepository.categoryBelongsToCompany(
+      if (command.categoryId) {
+        await this.productDependencyRepository.lockCategoryGraphShared(command.companyId);
+        if (!(await this.productDependencyRepository.categoryBelongsToCompany(
           command.categoryId,
           command.companyId,
-        ))
-      ) {
-        return ProductErrors.categoryNotFound(command.categoryId);
+        ))) {
+          return ProductErrors.categoryNotFound(command.categoryId);
+        }
       }
 
       if (command.defaultCurrencyId) {
@@ -84,11 +84,22 @@ export class CreateProductHandler {
       if (existing) {
         return ProductErrors.skuAlreadyExists(command.companyId, command.sku);
       }
+      await this.productRepository.lockCompanyProducts(command.companyId);
+      if (command.barcode) {
+        const barcodeOwner = await this.productRepository.findByBarcode(
+          command.companyId,
+          command.barcode,
+        );
+        if (barcodeOwner) {
+          return ProductErrors.barcodeAlreadyExists(command.companyId, command.barcode);
+        }
+      }
 
       const product = new ProductEntity({
         id: crypto.randomUUID(),
         companyId: command.companyId,
         sku: command.sku,
+        barcode: command.barcode,
         name: command.name,
         description: command.description,
         baseUnitId: command.baseUnitId,
@@ -113,6 +124,7 @@ export class CreateProductHandler {
           id: product.id,
           companyId: product.companyId,
           sku: product.sku,
+          barcode: product.barcode,
           name: product.name,
           baseUnitId: product.baseUnitId,
           occurredAt: new Date().toISOString(),

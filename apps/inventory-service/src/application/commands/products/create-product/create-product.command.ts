@@ -4,6 +4,7 @@ export class CreateProductCommand {
     public readonly sku: string,
     public readonly name: string,
     public readonly baseUnitId: string,
+    public readonly barcode: string | null = null,
     public readonly description: string | null = null,
     public readonly categoryId: string | null = null,
     public readonly defaultCurrencyId: string | null = null,

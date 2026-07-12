@@ -13,6 +13,7 @@ import {
   index,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /* ============================================================================
  * INVENTORY-MANAGEMENT SERVİSİ — WRITE DB ŞEMASI
@@ -169,6 +170,9 @@ export const unitsOfMeasure = pgTable(
       t.companyId,
       t.code,
     ),
+    oneBaseUnitPerGroup: uniqueIndex("uq_unit_group_base")
+      .on(t.unitGroupId)
+      .where(sql`${t.isBaseUnit} = true AND ${t.deletedAt} IS NULL`),
   }),
 );
 
@@ -229,6 +233,7 @@ export const products = pgTable(
     }).default("0"),
     maxStockLevel: numeric("max_stock_level", { precision: 18, scale: 4 }),
     isActive: boolean("is_active").notNull().default(true),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => ({
@@ -237,6 +242,9 @@ export const products = pgTable(
       t.sku,
     ),
     companyIdx: index("idx_product_company").on(t.companyId),
+    uniqCompanyBarcode: uniqueIndex("uq_product_company_barcode")
+      .on(t.companyId, t.barcode)
+      .where(sql`${t.barcode} IS NOT NULL AND ${t.deletedAt} IS NULL`),
   }),
 );
 

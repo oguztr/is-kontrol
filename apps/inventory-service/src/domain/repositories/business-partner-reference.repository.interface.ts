@@ -10,4 +10,5 @@ export interface BusinessPartnerReference {
 export interface IBusinessPartnerReferenceRepository {
   findById(id: string): Promise<BusinessPartnerReference | null>;
   upsert(reference: BusinessPartnerReference): Promise<void>;
+  setActive(id: string, isActive: boolean, syncedAt: Date): Promise<void>;
 }

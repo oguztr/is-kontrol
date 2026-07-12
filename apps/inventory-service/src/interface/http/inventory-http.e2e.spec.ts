@@ -6,6 +6,7 @@ import { PostStockDocumentHandler } from '../../application/commands/stock-docum
 import { ProductsController } from './controllers/products.controller';
 import { StockDocumentsController } from './controllers/stock-documents.controller';
 import { Failure, Success } from '../../application/result';
+import { ProductManagementUseCase } from '../../application/use-cases/product-management.use-case';
 
 describe('Inventory HTTP API', () => {
   let app: INestApplication;
@@ -20,6 +21,15 @@ describe('Inventory HTTP API', () => {
       controllers: [ProductsController, StockDocumentsController],
       providers: [
         { provide: CreateProductHandler, useValue: { execute: createProduct } },
+        {
+          provide: ProductManagementUseCase,
+          useValue: {
+            update: jest.fn(), activate: jest.fn(), deactivate: jest.fn(),
+            archive: jest.fn(), delete: jest.fn(), changeBaseUnit: jest.fn(),
+            setStockLevels: jest.fn(), list: jest.fn(), get: jest.fn(),
+            bySku: jest.fn(), byBarcode: jest.fn(),
+          },
+        },
         {
           provide: CreateStockDocumentHandler,
           useValue: { execute: createStockDocument },

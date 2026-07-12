@@ -9,4 +9,5 @@ export interface CompanyReference {
 export interface ICompanyReferenceRepository {
   findById(id: string): Promise<CompanyReference | null>;
   upsert(reference: CompanyReference): Promise<void>;
+  setActive(id: string, isActive: boolean, syncedAt: Date): Promise<void>;
 }

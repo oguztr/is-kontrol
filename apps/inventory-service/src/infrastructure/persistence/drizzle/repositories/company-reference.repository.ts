@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, lte } from 'drizzle-orm';
 import type {
   CompanyReference,
   ICompanyReferenceRepository,
@@ -43,6 +43,13 @@ export class DrizzleCompanyReferenceRepository implements ICompanyReferenceRepos
           isActive: reference.isActive,
           syncedAt: reference.syncedAt,
         },
+        setWhere: lte(companyReferences.syncedAt, reference.syncedAt),
       });
+  }
+
+  async setActive(id: string, isActive: boolean, syncedAt: Date): Promise<void> {
+    await this.db.update(companyReferences).set({ isActive, syncedAt }).where(and(
+      eq(companyReferences.id, id), lte(companyReferences.syncedAt, syncedAt),
+    ));
   }
 }

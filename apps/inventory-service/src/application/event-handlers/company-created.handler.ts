@@ -9,14 +9,16 @@ export class CompanyCreatedHandler implements IConsumedEventHandler {
       id: string;
       name: string;
       baseCurrencyCode: string;
+      isActive: boolean;
+      occurredAt: Date;
     };
 
     await this.companyReferenceRepository.upsert({
       id: payload.id,
       name: payload.name,
       baseCurrencyCode: payload.baseCurrencyCode,
-      isActive: true,
-      syncedAt: new Date(),
+      isActive: payload.isActive,
+      syncedAt: payload.occurredAt,
     });
   }
 }

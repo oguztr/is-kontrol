@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { IProductDependencyRepository } from "../../../../domain/repositories/product-dependency.repository.interface";
 import type {
   DbExecutor,
@@ -15,6 +15,10 @@ export class DrizzleProductDependencyRepository
     return this.session.db;
   }
 
+  async lockCategoryGraphShared(companyId: string): Promise<void> {
+    await this.db.execute(sql`select pg_advisory_xact_lock_shared(hashtextextended(${`category-graph|${companyId}`}, 0))`);
+  }
+
   async unitBelongsToCompany(
     unitId: string,
     companyId: string,
@@ -27,6 +31,7 @@ export class DrizzleProductDependencyRepository
           eq(unitsOfMeasure.id, unitId),
           eq(unitsOfMeasure.companyId, companyId),
           eq(unitsOfMeasure.isActive, true),
+          isNull(unitsOfMeasure.deletedAt),
         ),
       )
       .limit(1);
@@ -44,6 +49,7 @@ export class DrizzleProductDependencyRepository
         and(
           eq(productCategories.id, categoryId),
           eq(productCategories.companyId, companyId),
+          isNull(productCategories.deletedAt),
         ),
       )
       .limit(1);

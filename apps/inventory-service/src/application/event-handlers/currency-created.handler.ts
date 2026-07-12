@@ -10,6 +10,8 @@ export class CurrencyCreatedHandler implements IConsumedEventHandler {
       code: string;
       name: string;
       decimalPlaces: number;
+      isActive: boolean;
+      occurredAt: Date;
     };
 
     await this.currencyReferenceRepository.upsert({
@@ -17,8 +19,8 @@ export class CurrencyCreatedHandler implements IConsumedEventHandler {
       code: payload.code,
       name: payload.name,
       decimalPlaces: payload.decimalPlaces,
-      isActive: true,
-      syncedAt: new Date(),
+      isActive: payload.isActive,
+      syncedAt: payload.occurredAt,
     });
   }
 }

@@ -7,6 +7,10 @@ export type ProductError =
   | { code: 'INVALID_STOCK_LEVEL_RANGE'; min: string; max: string }
   | { code: 'PRODUCT_NOT_FOUND'; productId: string }
   | { code: 'PRODUCT_SKU_ALREADY_EXISTS'; companyId: string; sku: string }
+  | { code: 'PRODUCT_BARCODE_ALREADY_EXISTS'; companyId: string; barcode: string }
+  | { code: 'PRODUCT_ARCHIVED'; productId: string }
+  | { code: 'PRODUCT_HAS_STOCK_MOVEMENTS'; productId: string }
+  | { code: 'BASE_UNIT_CHANGE_HAS_MOVEMENTS'; productId: string }
   | { code: 'PRODUCT_INACTIVE'; productId: string }
   | { code: 'INVALID_UNIT_CONVERSION'; fromUnitId: string; toUnitId: string };
 
@@ -34,6 +38,13 @@ export const ProductErrors = {
 
   skuAlreadyExists: (companyId: string, sku: string): ProductError =>
     ({ code: 'PRODUCT_SKU_ALREADY_EXISTS', companyId, sku }),
+
+  barcodeAlreadyExists: (companyId: string, barcode: string): ProductError =>
+    ({ code: 'PRODUCT_BARCODE_ALREADY_EXISTS', companyId, barcode }),
+
+  archived: (productId: string): ProductError => ({ code: 'PRODUCT_ARCHIVED', productId }),
+  hasStockMovements: (productId: string): ProductError => ({ code: 'PRODUCT_HAS_STOCK_MOVEMENTS', productId }),
+  baseUnitChangeHasMovements: (productId: string): ProductError => ({ code: 'BASE_UNIT_CHANGE_HAS_MOVEMENTS', productId }),
 
   inactive: (productId: string): ProductError =>
     ({ code: 'PRODUCT_INACTIVE', productId }),

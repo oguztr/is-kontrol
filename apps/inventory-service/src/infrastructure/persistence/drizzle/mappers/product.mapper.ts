@@ -9,6 +9,7 @@ export class ProductMapper {
       id: row.id,
       companyId: row.companyId,
       sku: row.sku,
+      barcode: row.barcode,
       name: row.name,
       description: row.description ?? null,
       baseUnitId: row.baseUnitId,
@@ -18,15 +19,18 @@ export class ProductMapper {
       maxStockLevel: row.maxStockLevel ?? null,
       isActive: row.isActive,
       createdAt: row.createdAt,
+      archivedAt: row.archivedAt,
+      deletedAt: row.deletedAt,
     });
   }
 
-  static toPersistence(entity: ProductEntity): Omit<ProductRow, 'updatedAt' | 'deletedAt' | 'barcode'> {
+  static toPersistence(entity: ProductEntity): Omit<ProductRow, 'updatedAt'> {
     return {
       id: entity.id,
       companyId: entity.companyId,
       categoryId: entity.categoryId,
       sku: entity.sku,
+      barcode: entity.barcode,
       name: entity.name,
       description: entity.description,
       baseUnitId: entity.baseUnitId,
@@ -34,6 +38,8 @@ export class ProductMapper {
       minStockLevel: entity.minStockLevel,
       maxStockLevel: entity.maxStockLevel,
       isActive: entity.isActive,
+      archivedAt: entity.archivedAt,
+      deletedAt: entity.deletedAt,
       createdAt: entity.createdAt,
     };
   }
