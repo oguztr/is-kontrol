@@ -14,6 +14,7 @@ import type { MovementDirection } from "../../../../domain/entities/stock-moveme
 import type { DocumentType } from "../../../../domain/entities/stock-document.entity";
 import { Decimal } from "../../../../domain/value-objects/decimal.vo";
 import { CreateStockDocumentCommand } from "./create-stock-document.command";
+import { Failure, Result, Success } from "../../../result";
 
 // TRANSFER iki hareket üretir (kaynaktan OUT + hedefe IN); diğer türler tek yönlüdür.
 // ADJUSTMENT pozitif miktarla giriş düzeltmesidir (negatif düzeltme için RETURN_OUT vb. kullanılır).
@@ -42,8 +43,8 @@ export class CreateStockDocumentHandler {
 
   async execute(
     command: CreateStockDocumentCommand,
-  ): Promise<{ id: string } | StockDocumentError> {
-    return this.unitOfWork.run<{ id: string } | StockDocumentError>(async () => {
+  ): Promise<Result<{ id: string }, StockDocumentError>> {
+    const outcome = await this.unitOfWork.run<{ id: string } | StockDocumentError>(async () => {
       // Reference (cache) tablolara hard FK yok; bütünlük burada doğrulanır.
       const company = await this.companyReferenceRepository.findById(
         command.companyId,
@@ -219,10 +220,17 @@ export class CreateStockDocumentHandler {
         }
       }
 
-      await this.stockDocumentRepository.save(document);
+      const inserted = await this.stockDocumentRepository.save(document);
+      if (!inserted) {
+        return StockDocumentErrors.documentNumberAlreadyExists(
+          command.companyId,
+          command.documentNumber,
+        );
+      }
       await this.stockMovementRepository.saveMany(movements);
 
       return { id: document.id };
     });
+    return "code" in outcome ? new Failure(outcome) : new Success(outcome);
   }
 }

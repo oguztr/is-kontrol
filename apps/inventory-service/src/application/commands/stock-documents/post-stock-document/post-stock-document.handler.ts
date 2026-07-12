@@ -8,6 +8,7 @@ import { StockDocumentErrors } from "../../../../domain/errors/stock-document.er
 import { StockBalanceEntity } from "../../../../domain/entities/stock-balance.entity";
 import { Decimal } from "../../../../domain/value-objects/decimal.vo";
 import { PostStockDocumentCommand } from "./post-stock-document.command";
+import { Failure, Result, Success } from "../../../result";
 
 export class PostStockDocumentHandler {
   constructor(
@@ -20,8 +21,8 @@ export class PostStockDocumentHandler {
 
   async execute(
     command: PostStockDocumentCommand,
-  ): Promise<StockDocumentError | undefined> {
-    return this.unitOfWork.run<StockDocumentError | undefined>(async () => {
+  ): Promise<Result<void, StockDocumentError>> {
+    const error = await this.unitOfWork.run<StockDocumentError | undefined>(async () => {
       // Belgeyi ilk iş olarak kilitle: aynı belgeye gelen paralel post isteği
       // ilk transaction bitince güncel POSTED durumunu görür ve tekrar uygulamaz.
       const document = await this.stockDocumentRepository.findByIdForUpdate(
@@ -158,5 +159,6 @@ export class PostStockDocumentHandler {
 
       return undefined;
     });
+    return error ? new Failure(error) : new Success(undefined);
   }
 }

@@ -36,23 +36,30 @@ export class DrizzleStockDocumentRepository implements IStockDocumentRepository 
     return rows[0] ? this.toEntity(rows[0]) : null;
   }
 
-  async save(document: StockDocumentEntity): Promise<void> {
-    await this.db.insert(stockDocuments).values({
-      id: document.id,
-      companyId: document.companyId,
-      documentNumber: document.documentNumber,
-      documentType: document.documentType,
-      status: document.status,
-      warehouseId: document.warehouseId,
-      targetWarehouseId: document.targetWarehouseId ?? undefined,
-      partnerId: document.partnerId ?? undefined,
-      currencyId: document.currencyId,
-      exchangeRate: document.exchangeRate,
-      documentDate: document.documentDate,
-      notes: document.notes ?? undefined,
-      createdBy: document.createdBy ?? undefined,
-      createdAt: document.createdAt,
-    });
+  async save(document: StockDocumentEntity): Promise<boolean> {
+    const inserted = await this.db
+      .insert(stockDocuments)
+      .values({
+        id: document.id,
+        companyId: document.companyId,
+        documentNumber: document.documentNumber,
+        documentType: document.documentType,
+        status: document.status,
+        warehouseId: document.warehouseId,
+        targetWarehouseId: document.targetWarehouseId ?? undefined,
+        partnerId: document.partnerId ?? undefined,
+        currencyId: document.currencyId,
+        exchangeRate: document.exchangeRate,
+        documentDate: document.documentDate,
+        notes: document.notes ?? undefined,
+        createdBy: document.createdBy ?? undefined,
+        createdAt: document.createdAt,
+      })
+      .onConflictDoNothing({
+        target: [stockDocuments.companyId, stockDocuments.documentNumber],
+      })
+      .returning({ id: stockDocuments.id });
+    return inserted.length > 0;
   }
 
   async update(document: StockDocumentEntity): Promise<void> {

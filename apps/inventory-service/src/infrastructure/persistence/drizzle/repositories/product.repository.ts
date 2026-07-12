@@ -25,21 +25,28 @@ export class DrizzleProductRepository implements IProductRepository {
     return rows[0] ? this.toEntity(rows[0]) : null;
   }
 
-  async save(product: ProductEntity): Promise<void> {
-    await this.db.insert(products).values({
-      id: product.id,
-      companyId: product.companyId,
-      sku: product.sku,
-      name: product.name,
-      description: product.description,
-      baseUnitId: product.baseUnitId,
-      categoryId: product.categoryId,
-      defaultCurrencyId: product.defaultCurrencyId,
-      minStockLevel: product.minStockLevel,
-      maxStockLevel: product.maxStockLevel ?? undefined,
-      isActive: product.isActive,
-      createdAt: product.createdAt,
-    });
+  async save(product: ProductEntity): Promise<boolean> {
+    const inserted = await this.db
+      .insert(products)
+      .values({
+        id: product.id,
+        companyId: product.companyId,
+        sku: product.sku,
+        name: product.name,
+        description: product.description,
+        baseUnitId: product.baseUnitId,
+        categoryId: product.categoryId,
+        defaultCurrencyId: product.defaultCurrencyId,
+        minStockLevel: product.minStockLevel,
+        maxStockLevel: product.maxStockLevel ?? undefined,
+        isActive: product.isActive,
+        createdAt: product.createdAt,
+      })
+      .onConflictDoNothing({
+        target: [products.companyId, products.sku],
+      })
+      .returning({ id: products.id });
+    return inserted.length > 0;
   }
 
   async update(product: ProductEntity): Promise<void> {

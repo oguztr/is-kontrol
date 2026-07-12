@@ -2,6 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import type { ProductError } from '../../domain/errors/product.errors';
 import type { StockDocumentError } from '../../domain/errors/stock-document.errors';
 import type { WarehouseError } from '../../domain/errors/warehouse.errors';
+import type { Result } from '../../application/result';
 
 export type InventoryDomainError =
   | ProductError
@@ -55,9 +56,17 @@ export function domainErrorToHttpStatus(
 }
 
 /** Handler sonucunu döner; domain hatasıysa uygun HTTP hatasına çevirir. */
-export function unwrapDomainResult<T>(result: T | InventoryDomainError): T {
-  if (isDomainError(result)) {
-    throw new HttpException(result, domainErrorToHttpStatus(result));
-  }
-  return result as T;
+export function unwrapDomainResult<T>(result: Result<T, InventoryDomainError>): T {
+  return result.match(
+    (value) => value,
+    (error) => {
+      if (!isDomainError(error)) {
+        throw new HttpException(
+          { code: 'UNKNOWN_DOMAIN_ERROR' },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+      throw new HttpException(error, domainErrorToHttpStatus(error));
+    },
+  );
 }

@@ -10,6 +10,12 @@ export interface OutboxEvent {
 
 export interface IOutboxRepository {
   save(event: Omit<OutboxEvent, 'id' | 'createdAt' | 'publishedAt'>): Promise<void>;
-  findUnpublished(limit: number): Promise<OutboxEvent[]>;
-  markAsPublished(id: string): Promise<void>;
+  claimUnpublished(
+    limit: number,
+    claimedBy: string,
+    staleBefore: Date,
+  ): Promise<OutboxEvent[]>;
+  renewClaim(id: string, claimedBy: string): Promise<boolean>;
+  markAsPublished(id: string, claimedBy: string): Promise<void>;
+  releaseClaim(id: string, claimedBy: string, error: string): Promise<void>;
 }

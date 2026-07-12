@@ -268,7 +268,13 @@ import { CustomerCreatedHandler } from "./application/event-handlers/customer-cr
         outboxRepository: DrizzleOutboxRepository,
         kafkaClient: ClientKafka,
         unitOfWork: DrizzleUnitOfWork,
-      ) => new OutboxPublisherWorker(outboxRepository, kafkaClient, unitOfWork),
+      ) =>
+        new OutboxPublisherWorker(
+          outboxRepository,
+          kafkaClient,
+          unitOfWork,
+          crypto.randomUUID(),
+        ),
       inject: [DrizzleOutboxRepository, KAFKA_CLIENT, DrizzleUnitOfWork],
     },
     {

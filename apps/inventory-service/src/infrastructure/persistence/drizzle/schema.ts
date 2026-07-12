@@ -401,9 +401,24 @@ export const outboxEvents = pgTable(
       .notNull()
       .defaultNow(),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    claimedBy: varchar("claimed_by", { length: 100 }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    lastError: text("last_error"),
   },
   (t) => ({
     unpublishedIdx: index("idx_outbox_unpublished").on(t.publishedAt),
+    claimableIdx: index("idx_outbox_claimable").on(
+      t.publishedAt,
+      t.claimedAt,
+      t.createdAt,
+    ),
+    aggregateOrderIdx: index("idx_outbox_aggregate_order").on(
+      t.aggregateType,
+      t.aggregateId,
+      t.createdAt,
+      t.id,
+    ),
   }),
 );
 

@@ -5,6 +5,7 @@ import { CreateStockDocumentHandler } from '../../application/commands/stock-doc
 import { PostStockDocumentHandler } from '../../application/commands/stock-documents/post-stock-document/post-stock-document.handler';
 import { ProductsController } from './controllers/products.controller';
 import { StockDocumentsController } from './controllers/stock-documents.controller';
+import { Failure, Success } from '../../application/result';
 
 describe('Inventory HTTP API', () => {
   let app: INestApplication;
@@ -61,7 +62,7 @@ describe('Inventory HTTP API', () => {
 
   it('applies DTO defaults and returns 201 for a valid product', async () => {
     const id = crypto.randomUUID();
-    createProduct.mockResolvedValue({ id });
+    createProduct.mockResolvedValue(new Success({ id }));
 
     const response = await fetch(`${baseUrl}/inventory/products`, {
       method: 'POST',
@@ -81,11 +82,11 @@ describe('Inventory HTTP API', () => {
 
   it('maps duplicate resources to 409', async () => {
     const companyId = crypto.randomUUID();
-    createProduct.mockResolvedValue({
+    createProduct.mockResolvedValue(new Failure({
       code: 'PRODUCT_SKU_ALREADY_EXISTS',
       companyId,
       sku: 'SKU-1',
-    });
+    }));
 
     const response = await fetch(`${baseUrl}/inventory/products`, {
       method: 'POST',
@@ -106,7 +107,9 @@ describe('Inventory HTTP API', () => {
 
   it('maps missing body references to 422', async () => {
     const companyId = crypto.randomUUID();
-    createProduct.mockResolvedValue({ code: 'COMPANY_NOT_FOUND', companyId });
+    createProduct.mockResolvedValue(
+      new Failure({ code: 'COMPANY_NOT_FOUND', companyId }),
+    );
 
     const response = await fetch(`${baseUrl}/inventory/products`, {
       method: 'POST',
@@ -124,7 +127,7 @@ describe('Inventory HTTP API', () => {
 
   it('parses a valid stock document DTO and applies monetary defaults', async () => {
     const id = crypto.randomUUID();
-    createStockDocument.mockResolvedValue({ id });
+    createStockDocument.mockResolvedValue(new Success({ id }));
 
     const response = await fetch(`${baseUrl}/inventory/stock-documents`, {
       method: 'POST',
@@ -164,10 +167,10 @@ describe('Inventory HTTP API', () => {
     expect(postStockDocument).not.toHaveBeenCalled();
 
     const documentId = crypto.randomUUID();
-    postStockDocument.mockResolvedValue({
+    postStockDocument.mockResolvedValue(new Failure({
       code: 'DOCUMENT_NOT_FOUND',
       documentId,
-    });
+    }));
     const missingResponse = await fetch(
       `${baseUrl}/inventory/stock-documents/${documentId}/post`,
       { method: 'PATCH' },

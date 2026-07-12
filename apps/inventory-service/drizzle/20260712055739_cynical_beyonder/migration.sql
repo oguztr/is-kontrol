@@ -1,0 +1,2 @@
+CREATE INDEX "idx_outbox_claimable" ON "outbox_events" ("published_at","claimed_at","created_at");--> statement-breakpoint
+CREATE INDEX "idx_outbox_aggregate_order" ON "outbox_events" ("aggregate_type","aggregate_id","created_at","id");

@@ -91,9 +91,10 @@ describe("PostStockDocumentHandler", () => {
       unitOfWork,
     );
 
-    await expect(
-      handler.execute(new PostStockDocumentCommand(currentDocument.id)),
-    ).resolves.toBeUndefined();
+    const result = await handler.execute(
+      new PostStockDocumentCommand(currentDocument.id),
+    );
+    expect(result.isSuccess).toBe(true);
 
     expect(documentRepository.findById).not.toHaveBeenCalled();
     expect(documentRepository.findByIdForUpdate).toHaveBeenCalledWith(
@@ -140,9 +141,16 @@ describe("PostStockDocumentHandler", () => {
       unitOfWork,
     );
 
-    await expect(
-      handler.execute(new PostStockDocumentCommand(currentDocument.id)),
-    ).resolves.toEqual({
+    const result = await handler.execute(
+      new PostStockDocumentCommand(currentDocument.id),
+    );
+    expect(result.isFailure).toBe(true);
+    expect(
+      result.match(
+        () => null,
+        (error) => error,
+      ),
+    ).toEqual({
       code: "DOCUMENT_ALREADY_POSTED",
       documentId: currentDocument.id,
     });

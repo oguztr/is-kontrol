@@ -9,6 +9,7 @@ import { ProductErrors } from "../../../../domain/errors/product.errors";
 import { ProductEntity } from "../../../../domain/entities/product.entity";
 import { Decimal } from "../../../../domain/value-objects/decimal.vo";
 import { CreateProductCommand } from "./create-product.command";
+import { Failure, Result, Success } from "../../../result";
 
 export class CreateProductHandler {
   constructor(
@@ -22,9 +23,9 @@ export class CreateProductHandler {
 
   async execute(
     command: CreateProductCommand,
-  ): Promise<{ id: string } | ProductError> {
+  ): Promise<Result<{ id: string }, ProductError>> {
     // Ürün insert'i ile outbox kaydı aynı transaction'da atılır (transactional outbox).
-    return this.unitOfWork.run<{ id: string } | ProductError>(async () => {
+    const outcome = await this.unitOfWork.run<{ id: string } | ProductError>(async () => {
       // Reference (cache) tablolara hard FK yok; bütünlük burada doğrulanır.
       const company = await this.companyReferenceRepository.findById(
         command.companyId,
@@ -99,7 +100,10 @@ export class CreateProductHandler {
         createdAt: new Date(),
       });
 
-      await this.productRepository.save(product);
+      const inserted = await this.productRepository.save(product);
+      if (!inserted) {
+        return ProductErrors.skuAlreadyExists(command.companyId, command.sku);
+      }
 
       await this.eventPublisher.publish({
         aggregateType: "Product",
@@ -117,5 +121,6 @@ export class CreateProductHandler {
 
       return { id: product.id };
     });
+    return "code" in outcome ? new Failure(outcome) : new Success(outcome);
   }
 }

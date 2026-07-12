@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, lt, notExists, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { IOutboxRepository, OutboxEvent } from '../../../../domain/repositories/outbox.repository.interface'
 import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
@@ -20,9 +20,14 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
     });
   }
 
-  // Üretim sırasına göre döner; satırları kilitler (SKIP LOCKED) ki birden çok
-  // instance aynı event'i aynı anda yayınlamasın. Transaction içinde çağrılmalı.
-  async findUnpublished(limit: number): Promise<OutboxEvent[]> {
+  // Kısa transaction içinde eventleri lease ile claim eder. Kafka network
+  // çağrısı transaction dışında yapılır; crash olan claim'ler staleBefore
+  // sonrası yeniden alınabilir.
+  async claimUnpublished(
+    limit: number,
+    claimedBy: string,
+    staleBefore: Date,
+  ): Promise<OutboxEvent[]> {
     const earlier = alias(outboxEvents, 'earlier_outbox_event');
     const rows = await this.db
       .select()
@@ -30,6 +35,10 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
       .where(
         and(
           isNull(outboxEvents.publishedAt),
+          or(
+            isNull(outboxEvents.claimedAt),
+            lt(outboxEvents.claimedAt, staleBefore),
+          ),
           // Aynı aggregate'in daha eski yayımlanmamış eventi varsa yenisi
           // eligible değildir. Kilitli eski satır MVCC ile görülmeye devam
           // ettiğinden SKIP LOCKED çoklu instance'ta sırayı bozamaz.
@@ -57,6 +66,18 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
       .orderBy(asc(outboxEvents.createdAt), asc(outboxEvents.id))
       .limit(limit)
       .for('update', { skipLocked: true });
+    if (rows.length === 0) return [];
+
+    await this.db
+      .update(outboxEvents)
+      .set({
+        claimedBy,
+        claimedAt: new Date(),
+        attemptCount: sql`${outboxEvents.attemptCount} + 1`,
+        lastError: null,
+      })
+      .where(inArray(outboxEvents.id, rows.map((row) => row.id)));
+
     return rows.map((r) => ({
       id: r.id,
       aggregateType: r.aggregateType,
@@ -68,7 +89,31 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
     }));
   }
 
-  async markAsPublished(id: string): Promise<void> {
-    await this.db.update(outboxEvents).set({ publishedAt: new Date() }).where(eq(outboxEvents.id, id));
+  async markAsPublished(id: string, claimedBy: string): Promise<void> {
+    await this.db
+      .update(outboxEvents)
+      .set({
+        publishedAt: new Date(),
+        claimedBy: null,
+        claimedAt: null,
+        lastError: null,
+      })
+      .where(and(eq(outboxEvents.id, id), eq(outboxEvents.claimedBy, claimedBy)));
+  }
+
+  async renewClaim(id: string, claimedBy: string): Promise<boolean> {
+    const renewed = await this.db
+      .update(outboxEvents)
+      .set({ claimedAt: new Date() })
+      .where(and(eq(outboxEvents.id, id), eq(outboxEvents.claimedBy, claimedBy)))
+      .returning({ id: outboxEvents.id });
+    return renewed.length > 0;
+  }
+
+  async releaseClaim(id: string, claimedBy: string, error: string): Promise<void> {
+    await this.db
+      .update(outboxEvents)
+      .set({ claimedBy: null, claimedAt: null, lastError: error })
+      .where(and(eq(outboxEvents.id, id), eq(outboxEvents.claimedBy, claimedBy)));
   }
 }
