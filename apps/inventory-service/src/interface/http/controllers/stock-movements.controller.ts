@@ -1,10 +1,11 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, NotImplementedException } from '@nestjs/common';
 
 @Controller('stock-movements')
 export class StockMovementsController {
   @Get('document/:documentId')
   listByDocument(@Param('documentId') _documentId: string) {
-    // TODO: wire list-movements query handler
-    return [];
+    throw new NotImplementedException(
+      `Movement query is not implemented for document ${_documentId}`,
+    );
   }
 }

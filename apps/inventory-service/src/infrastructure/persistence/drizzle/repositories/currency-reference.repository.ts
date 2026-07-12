@@ -3,11 +3,15 @@ import type {
   CurrencyReference,
   ICurrencyReferenceRepository,
 } from '../../../../domain/repositories/currency-reference.repository.interface'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { currencyReferences } from '../schema'
 
 export class DrizzleCurrencyReferenceRepository implements ICurrencyReferenceRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async findById(id: string): Promise<CurrencyReference | null> {
     const rows = await this.db.select().from(currencyReferences).where(eq(currencyReferences.id, id)).limit(1);

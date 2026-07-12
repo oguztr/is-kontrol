@@ -1,10 +1,20 @@
 import { z } from 'zod';
 
+const decimalSchema = (integerDigits: number, scale: number) =>
+  z
+    .string()
+    .regex(
+      new RegExp(`^\\d{1,${integerDigits}}(?:\\.\\d{1,${scale}})?$`),
+      `Must be a non-negative decimal with at most ${integerDigits} integer and ${scale} decimal digits`,
+    );
+
 const documentLineSchema = z.object({
   productId: z.string().uuid(),
   unitId: z.string().uuid(),
-  quantity: z.string().regex(/^\d+(\.\d+)?$/),
-  unitPrice: z.string().regex(/^\d+(\.\d+)?$/).default('0'),
+  quantity: decimalSchema(14, 4).refine((value) => Number(value) > 0, {
+    message: 'Must be greater than zero',
+  }),
+  unitPrice: decimalSchema(14, 4).default('0'),
   notes: z.string().max(500).nullish(),
 });
 
@@ -17,11 +27,15 @@ export const createStockDocumentSchema = z.object({
   ]),
   warehouseId: z.string().uuid(),
   currencyId: z.string().uuid(),
-  documentDate: z.string().datetime(),
+  documentDate: z.string().datetime({ offset: true }).transform((value) => new Date(value)),
   lines: z.array(documentLineSchema).min(1),
   targetWarehouseId: z.string().uuid().nullish(),
   partnerId: z.string().uuid().nullish(),
-  exchangeRate: z.string().regex(/^\d+(\.\d+)?$/).default('1'),
+  exchangeRate: decimalSchema(10, 8)
+    .refine((value) => Number(value) > 0, {
+      message: 'Must be greater than zero',
+    })
+    .default('1'),
   notes: z.string().max(2000).nullish(),
   createdBy: z.string().uuid().nullish(),
 });

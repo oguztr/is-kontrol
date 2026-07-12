@@ -1,11 +1,15 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import type { IStockBalanceRepository } from '../../../../domain/repositories/stock-balance.repository.interface'
 import { StockBalanceEntity } from '../../../../domain/entities/stock-balance.entity'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { stockBalances } from '../schema'
 
 export class DrizzleStockBalanceRepository implements IStockBalanceRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async findByWarehouseAndProduct(
     warehouseId: string,
@@ -16,6 +20,29 @@ export class DrizzleStockBalanceRepository implements IStockBalanceRepository {
       .from(stockBalances)
       .where(and(eq(stockBalances.warehouseId, warehouseId), eq(stockBalances.productId, productId)))
       .limit(1);
+    return rows[0] ? this.toEntity(rows[0]) : null;
+  }
+
+  async lockWarehouseAndProduct(
+    warehouseId: string,
+    productId: string,
+  ): Promise<void> {
+    const lockKey = `${warehouseId}|${productId}`;
+    await this.db.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
+    );
+  }
+
+  async findByWarehouseAndProductForUpdate(
+    warehouseId: string,
+    productId: string,
+  ): Promise<StockBalanceEntity | null> {
+    const rows = await this.db
+      .select()
+      .from(stockBalances)
+      .where(and(eq(stockBalances.warehouseId, warehouseId), eq(stockBalances.productId, productId)))
+      .limit(1)
+      .for('update');
     return rows[0] ? this.toEntity(rows[0]) : null;
   }
 

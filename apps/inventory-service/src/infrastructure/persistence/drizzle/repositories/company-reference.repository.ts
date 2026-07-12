@@ -3,11 +3,15 @@ import type {
   CompanyReference,
   ICompanyReferenceRepository,
 } from '../../../../domain/repositories/company-reference.repository.interface'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { companyReferences } from '../schema'
 
 export class DrizzleCompanyReferenceRepository implements ICompanyReferenceRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async findById(id: string): Promise<CompanyReference | null> {
     const rows = await this.db.select().from(companyReferences).where(eq(companyReferences.id, id)).limit(1);

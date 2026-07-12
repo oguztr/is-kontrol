@@ -1,11 +1,15 @@
 import { eq, and } from 'drizzle-orm';
 import type { IWarehouseRepository } from '../../../../domain/repositories/warehouse.repository.interface'
 import { WarehouseEntity } from '../../../../domain/entities/warehouse.entity'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { warehouses } from '../schema'
 
 export class DrizzleWarehouseRepository implements IWarehouseRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async findById(id: string): Promise<WarehouseEntity | null> {
     const rows = await this.db.select().from(warehouses).where(eq(warehouses.id, id)).limit(1);

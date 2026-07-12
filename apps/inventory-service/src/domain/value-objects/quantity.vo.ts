@@ -1,34 +1,32 @@
+import { Decimal } from "./decimal.vo";
+
 export class Quantity {
   public readonly value: string;
   public readonly unitId: string;
 
   constructor(value: string, unitId: string) {
-    const parsed = parseFloat(value);
-    if (isNaN(parsed)) {
-      throw new Error(`Invalid quantity value: ${value}`);
-    }
-    this.value = parsed.toFixed(4);
+    this.value = Decimal.from(value).toFixed(4);
     this.unitId = unitId;
   }
 
   convertToBase(factorToBase: string): Quantity {
-    const base = (parseFloat(this.value) * parseFloat(factorToBase)).toFixed(4);
+    const base = Decimal.from(this.value).multiply(Decimal.from(factorToBase));
     // baseUnitId is resolved by the caller
-    return new Quantity(base, this.unitId);
+    return new Quantity(base.toFixed(4), this.unitId);
   }
 
   isGreaterThan(other: Quantity): boolean {
     if (this.unitId !== other.unitId) {
       throw new Error('Cannot compare quantities with different units');
     }
-    return parseFloat(this.value) > parseFloat(other.value);
+    return Decimal.from(this.value).isGreaterThan(Decimal.from(other.value));
   }
 
   get isZero(): boolean {
-    return parseFloat(this.value) === 0;
+    return Decimal.from(this.value).isZero;
   }
 
   get isNegative(): boolean {
-    return parseFloat(this.value) < 0;
+    return Decimal.from(this.value).isNegative;
   }
 }

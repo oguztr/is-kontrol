@@ -11,6 +11,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 /* ============================================================================
@@ -22,6 +23,10 @@ import {
  * tablo olarak, ilgili servislerden gelen Kafka event'leri ile senkronize
  * edilerek tutulur. Bu tablolar salt-okunurdur; uygulama kodu bunlara asla
  * doğrudan INSERT/UPDATE yapmaz, sadece event consumer'lar günceller.
+ *
+ * Reference tablolara kasıtlı olarak hard FK verilmez (event sırası garanti
+ * edilemez); referans bütünlüğü uygulama seviyesinde, command handler'larda
+ * doğrulanır.
  * ==========================================================================*/
 
 const timestamps = {
@@ -130,9 +135,7 @@ export const unitGroups = pgTable(
   "unit_groups",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companyReferences.id, { onDelete: "restrict" }),
+    companyId: uuid("company_id").notNull(),
     name: varchar("name", { length: 100 }).notNull(),
     ...timestamps,
   },
@@ -148,9 +151,7 @@ export const unitsOfMeasure = pgTable(
   "units_of_measure",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companyReferences.id, { onDelete: "restrict" }),
+    companyId: uuid("company_id").notNull(),
     unitGroupId: uuid("unit_group_id")
       .notNull()
       .references(() => unitGroups.id, { onDelete: "restrict" }),
@@ -175,9 +176,7 @@ export const warehouses = pgTable(
   "warehouses",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companyReferences.id, { onDelete: "restrict" }),
+    companyId: uuid("company_id").notNull(),
     code: varchar("code", { length: 20 }).notNull(),
     name: varchar("name", { length: 150 }).notNull(),
     address: text("address"),
@@ -196,10 +195,8 @@ export const productCategories = pgTable(
   "product_categories",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companyReferences.id, { onDelete: "restrict" }),
-    parentId: uuid("parent_id").references((): any => productCategories.id, {
+    companyId: uuid("company_id").notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => productCategories.id, {
       onDelete: "set null",
     }),
     name: varchar("name", { length: 150 }).notNull(),
@@ -214,9 +211,7 @@ export const products = pgTable(
   "products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companyReferences.id, { onDelete: "restrict" }),
+    companyId: uuid("company_id").notNull(),
     categoryId: uuid("category_id").references(() => productCategories.id, {
       onDelete: "set null",
     }),
@@ -227,10 +222,7 @@ export const products = pgTable(
     baseUnitId: uuid("base_unit_id")
       .notNull()
       .references(() => unitsOfMeasure.id, { onDelete: "restrict" }),
-    defaultCurrencyId: uuid("default_currency_id").references(
-      () => currencyReferences.id,
-      { onDelete: "set null" },
-    ),
+    defaultCurrencyId: uuid("default_currency_id"),
     minStockLevel: numeric("min_stock_level", {
       precision: 18,
       scale: 4,
@@ -275,9 +267,7 @@ export const stockDocuments = pgTable(
   "stock_documents",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companyReferences.id, { onDelete: "restrict" }),
+    companyId: uuid("company_id").notNull(),
     documentNumber: varchar("document_number", { length: 50 }).notNull(),
     documentType: documentTypeEnum("document_type").notNull(),
     status: documentStatusEnum("status").notNull().default("DRAFT"),
@@ -288,13 +278,8 @@ export const stockDocuments = pgTable(
       () => warehouses.id,
       { onDelete: "restrict" },
     ),
-    partnerId: uuid("partner_id").references(
-      () => businessPartnerReferences.id,
-      { onDelete: "set null" },
-    ),
-    currencyId: uuid("currency_id")
-      .notNull()
-      .references(() => currencyReferences.id, { onDelete: "restrict" }),
+    partnerId: uuid("partner_id"),
+    currencyId: uuid("currency_id").notNull(),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 8 })
       .notNull()
       .default("1"),
@@ -319,9 +304,7 @@ export const stockMovements = pgTable(
   "stock_movements",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companyReferences.id, { onDelete: "restrict" }),
+    companyId: uuid("company_id").notNull(),
     documentId: uuid("document_id")
       .notNull()
       .references(() => stockDocuments.id, { onDelete: "cascade" }),
@@ -344,9 +327,7 @@ export const stockMovements = pgTable(
     unitPrice: numeric("unit_price", { precision: 18, scale: 4 })
       .notNull()
       .default("0"),
-    currencyId: uuid("currency_id")
-      .notNull()
-      .references(() => currencyReferences.id, { onDelete: "restrict" }),
+    currencyId: uuid("currency_id").notNull(),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 8 })
       .notNull()
       .default("1"),
@@ -375,9 +356,7 @@ export const stockBalances = pgTable(
   "stock_balances",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companyReferences.id, { onDelete: "restrict" }),
+    companyId: uuid("company_id").notNull(),
     warehouseId: uuid("warehouse_id")
       .notNull()
       .references(() => warehouses.id, { onDelete: "cascade" }),
@@ -428,34 +407,13 @@ export const outboxEvents = pgTable(
   }),
 );
 
-export const inboxStatusEnum = pgEnum("inbox_status", [
-  "PENDING",
-  "PROCESSING",
-  "PROCESSED",
-  "FAILED",
-]);
-
-export const inboxEvents = pgTable(
-  "inbox_events",
-  {
-    id: uuid("id").primaryKey(),
-    eventType: varchar("event_type", { length: 100 }).notNull(),
-    sourceService: varchar("source_service", { length: 50 }).notNull(),
-    aggregateType: varchar("aggregate_type", { length: 50 }),
-    aggregateId: uuid("aggregate_id"),
-    payload: jsonb("payload").notNull(),
-    status: inboxStatusEnum("status").notNull().default("PENDING"),
-    retryCount: integer("retry_count").notNull().default(0),
-    lastError: text("last_error"),
-    kafkaTopic: varchar("kafka_topic", { length: 150 }),
-    kafkaPartition: integer("kafka_partition"),
-    kafkaOffset: varchar("kafka_offset", { length: 50 }),
-    receivedAt: timestamp("received_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    processedAt: timestamp("processed_at", { withTimezone: true }),
-  },
-  (t) => ({
-    statusIdx: index("idx_inbox_status_received").on(t.status, t.receivedAt),
-  }),
-);
+/* Idempotent consumer kaydı: bir event ilk kez işlenirken buraya, handler'ın
+ * yaptığı yazmalarla AYNI transaction içinde insert edilir. Aynı event tekrar
+ * teslim edilirse (at-least-once) insert çakışır ve işleme atlanır. */
+export const processedEvents = pgTable("processed_events", {
+  eventId: varchar("event_id", { length: 200 }).primaryKey(),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

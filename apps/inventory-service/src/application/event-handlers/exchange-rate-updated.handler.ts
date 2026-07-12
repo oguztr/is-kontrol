@@ -1,8 +1,8 @@
-import type { InboxEvent } from "../../domain/repositories/inbox.repository.interface";
+import type { IConsumedEventHandler } from './consumed-event'
 
 // TODO: inject exchange rate repository when implemented
-export class ExchangeRateUpdatedHandler {
-  async handle(_event: InboxEvent): Promise<void> {
+export class ExchangeRateUpdatedHandler implements IConsumedEventHandler {
+  async handle(): Promise<void> {
     // upsert into exchange_rate_references via repository
   }
 }

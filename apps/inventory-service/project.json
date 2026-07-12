@@ -31,5 +31,13 @@
       }
     },
     "test": { "options": { "passWithNoTests": true } }
+    ,
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.json --emitDeclarationOnly --force",
+        "cwd": "apps/inventory-service"
+      }
+    }
   }
 }

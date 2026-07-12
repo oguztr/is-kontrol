@@ -1,6 +1,10 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import type { CreateProductHandler } from '../../../application/commands/products/create-product/create-product.handler'
+import { CreateProductHandler } from '../../../application/commands/products/create-product/create-product.handler';
 import { CreateProductCommand } from '../../../application/commands/products/create-product/create-product.command';
+import { createProductSchema } from '../dto/products/create-product.dto';
+import type { CreateProductDto } from '../dto/products/create-product.dto';
+import { ZodValidationPipe } from '../zod-validation.pipe';
+import { unwrapDomainResult } from '../domain-error.mapper';
 
 @Controller('products')
 export class ProductsController {
@@ -8,17 +12,9 @@ export class ProductsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() body: {
-    companyId: string;
-    sku: string;
-    name: string;
-    baseUnitId: string;
-    description?: string;
-    categoryId?: string;
-    defaultCurrencyId?: string;
-    minStockLevel?: string;
-    maxStockLevel?: string;
-  }) {
+  async create(
+    @Body(new ZodValidationPipe(createProductSchema)) body: CreateProductDto,
+  ) {
     const command = new CreateProductCommand(
       body.companyId,
       body.sku,
@@ -27,9 +23,9 @@ export class ProductsController {
       body.description ?? null,
       body.categoryId ?? null,
       body.defaultCurrencyId ?? null,
-      body.minStockLevel ?? '0',
+      body.minStockLevel,
       body.maxStockLevel ?? null,
     );
-    return this.createProductHandler.execute(command);
+    return unwrapDomainResult(await this.createProductHandler.execute(command));
   }
 }

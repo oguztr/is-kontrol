@@ -1,10 +1,15 @@
-import { isNull, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull, lt, notExists, or } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { IOutboxRepository, OutboxEvent } from '../../../../domain/repositories/outbox.repository.interface'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { outboxEvents } from '../schema'
 
 export class DrizzleOutboxRepository implements IOutboxRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async save(event: Omit<OutboxEvent, 'id' | 'createdAt' | 'publishedAt'>): Promise<void> {
     await this.db.insert(outboxEvents).values({
@@ -15,12 +20,43 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
     });
   }
 
+  // Üretim sırasına göre döner; satırları kilitler (SKIP LOCKED) ki birden çok
+  // instance aynı event'i aynı anda yayınlamasın. Transaction içinde çağrılmalı.
   async findUnpublished(limit: number): Promise<OutboxEvent[]> {
+    const earlier = alias(outboxEvents, 'earlier_outbox_event');
     const rows = await this.db
       .select()
       .from(outboxEvents)
-      .where(isNull(outboxEvents.publishedAt))
-      .limit(limit);
+      .where(
+        and(
+          isNull(outboxEvents.publishedAt),
+          // Aynı aggregate'in daha eski yayımlanmamış eventi varsa yenisi
+          // eligible değildir. Kilitli eski satır MVCC ile görülmeye devam
+          // ettiğinden SKIP LOCKED çoklu instance'ta sırayı bozamaz.
+          notExists(
+            this.db
+              .select({ id: earlier.id })
+              .from(earlier)
+              .where(
+                and(
+                  eq(earlier.aggregateType, outboxEvents.aggregateType),
+                  eq(earlier.aggregateId, outboxEvents.aggregateId),
+                  isNull(earlier.publishedAt),
+                  or(
+                    lt(earlier.createdAt, outboxEvents.createdAt),
+                    and(
+                      eq(earlier.createdAt, outboxEvents.createdAt),
+                      lt(earlier.id, outboxEvents.id),
+                    ),
+                  ),
+                ),
+              ),
+          ),
+        ),
+      )
+      .orderBy(asc(outboxEvents.createdAt), asc(outboxEvents.id))
+      .limit(limit)
+      .for('update', { skipLocked: true });
     return rows.map((r) => ({
       id: r.id,
       aggregateType: r.aggregateType,

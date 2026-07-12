@@ -1,10 +1,10 @@
 import type { ICurrencyReferenceRepository } from '../../domain/repositories/currency-reference.repository.interface'
-import type { InboxEvent } from '../../domain/repositories/inbox.repository.interface'
+import type { ConsumedEvent, IConsumedEventHandler } from './consumed-event'
 
-export class CurrencyCreatedHandler {
+export class CurrencyCreatedHandler implements IConsumedEventHandler {
   constructor(private readonly currencyReferenceRepository: ICurrencyReferenceRepository) {}
 
-  async handle(event: InboxEvent): Promise<void> {
+  async handle(event: ConsumedEvent): Promise<void> {
     const payload = event.payload as {
       id: string;
       code: string;

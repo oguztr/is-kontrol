@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, NotImplementedException } from '@nestjs/common';
 
 @Controller('stock-balances')
 export class StockBalancesController {
@@ -7,7 +7,8 @@ export class StockBalancesController {
     @Param('warehouseId') _warehouseId: string,
     @Param('productId') _productId: string,
   ) {
-    // TODO: wire get-balance query handler
-    return null;
+    throw new NotImplementedException(
+      `Balance query is not implemented for ${_warehouseId}/${_productId}`,
+    );
   }
 }

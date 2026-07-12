@@ -1,11 +1,15 @@
 import { eq, and } from 'drizzle-orm';
 import type { IProductRepository } from '../../../../domain/repositories/product.repository.interface'
 import { ProductEntity } from '../../../../domain/entities/product.entity'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { products } from '../schema'
 
 export class DrizzleProductRepository implements IProductRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async findById(id: string): Promise<ProductEntity | null> {
     const rows = await this.db.select().from(products).where(eq(products.id, id)).limit(1);

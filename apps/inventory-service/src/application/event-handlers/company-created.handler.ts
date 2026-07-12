@@ -1,10 +1,10 @@
 import type { ICompanyReferenceRepository } from '../../domain/repositories/company-reference.repository.interface'
-import type { InboxEvent } from '../../domain/repositories/inbox.repository.interface'
+import type { ConsumedEvent, IConsumedEventHandler } from './consumed-event'
 
-export class CompanyCreatedHandler {
+export class CompanyCreatedHandler implements IConsumedEventHandler {
   constructor(private readonly companyReferenceRepository: ICompanyReferenceRepository) {}
 
-  async handle(event: InboxEvent): Promise<void> {
+  async handle(event: ConsumedEvent): Promise<void> {
     const payload = event.payload as {
       id: string;
       name: string;

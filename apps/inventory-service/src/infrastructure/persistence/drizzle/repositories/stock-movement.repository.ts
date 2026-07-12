@@ -1,18 +1,23 @@
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import type { IStockMovementRepository } from '../../../../domain/repositories/stock-movement.repository.interface'
 import { StockMovementEntity } from '../../../../domain/entities/stock-movement.entity'
 import type { MovementDirection } from '../../../../domain/entities/stock-movement.entity'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { stockMovements } from '../schema'
 
 export class DrizzleStockMovementRepository implements IStockMovementRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async findByDocumentId(documentId: string): Promise<StockMovementEntity[]> {
     const rows = await this.db
       .select()
       .from(stockMovements)
-      .where(eq(stockMovements.documentId, documentId));
+      .where(eq(stockMovements.documentId, documentId))
+      .orderBy(asc(stockMovements.lineNumber));
     return rows.map((r) => this.toEntity(r));
   }
 

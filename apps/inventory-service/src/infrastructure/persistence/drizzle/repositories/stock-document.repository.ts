@@ -2,14 +2,28 @@ import { eq, and } from 'drizzle-orm';
 import type { IStockDocumentRepository } from '../../../../domain/repositories/stock-document.repository.interface'
 import { StockDocumentEntity } from '../../../../domain/entities/stock-document.entity'
 import type { DocumentType, DocumentStatus } from '../../../../domain/entities/stock-document.entity'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { stockDocuments } from '../schema'
 
 export class DrizzleStockDocumentRepository implements IStockDocumentRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async findById(id: string): Promise<StockDocumentEntity | null> {
     const rows = await this.db.select().from(stockDocuments).where(eq(stockDocuments.id, id)).limit(1);
+    return rows[0] ? this.toEntity(rows[0]) : null;
+  }
+
+  async findByIdForUpdate(id: string): Promise<StockDocumentEntity | null> {
+    const rows = await this.db
+      .select()
+      .from(stockDocuments)
+      .where(eq(stockDocuments.id, id))
+      .limit(1)
+      .for('update');
     return rows[0] ? this.toEntity(rows[0]) : null;
   }
 

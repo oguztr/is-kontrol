@@ -1,13 +1,17 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type {
   BusinessPartnerReference,
   IBusinessPartnerReferenceRepository,
 } from '../../../../domain/repositories/business-partner-reference.repository.interface'
-import type { WriteDb } from '../drizzle.provider'
+import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
 import { businessPartnerReferences } from '../schema'
 
 export class DrizzleBusinessPartnerReferenceRepository implements IBusinessPartnerReferenceRepository {
-  constructor(private readonly db: WriteDb) {}
+  constructor(private readonly session: DrizzleTransactionHost) {}
+
+  private get db(): DbExecutor {
+    return this.session.db;
+  }
 
   async findById(id: string): Promise<BusinessPartnerReference | null> {
     const rows = await this.db
@@ -42,7 +46,11 @@ export class DrizzleBusinessPartnerReferenceRepository implements IBusinessPartn
         target: businessPartnerReferences.id,
         set: {
           name: reference.name,
-          type: reference.type,
+          type: sql<string>`case
+            when ${businessPartnerReferences.type} = 'BOTH' then 'BOTH'
+            when ${businessPartnerReferences.type} <> ${reference.type} then 'BOTH'
+            else ${reference.type}
+          end`,
           isActive: reference.isActive,
           syncedAt: reference.syncedAt,
         },
