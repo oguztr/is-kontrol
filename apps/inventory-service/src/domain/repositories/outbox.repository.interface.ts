@@ -4,6 +4,7 @@ export interface OutboxEvent {
   aggregateId: string;
   eventType: string;
   payload: Record<string, unknown>;
+  correlationId: string | null;
   createdAt: Date;
   publishedAt: Date | null;
 }

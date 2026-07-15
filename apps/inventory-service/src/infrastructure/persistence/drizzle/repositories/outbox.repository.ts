@@ -17,6 +17,7 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
       aggregateId: event.aggregateId,
       eventType: event.eventType,
       payload: event.payload,
+      correlationId: event.correlationId ?? undefined,
     });
   }
 
@@ -84,6 +85,7 @@ export class DrizzleOutboxRepository implements IOutboxRepository {
       aggregateId: r.aggregateId,
       eventType: r.eventType,
       payload: r.payload as Record<string, unknown>,
+      correlationId: r.correlationId ?? null,
       createdAt: r.createdAt,
       publishedAt: r.publishedAt ?? null,
     }));

@@ -3,8 +3,15 @@ packages:
   - 'libs/**'
 
 autoInstallPeers: true
+# class-validator/transformer kullanılmıyor (zod var); autoInstallPeers bunları
+# kurup @nestjs/common'ın ikinci bir peer-varyantını yaratmasın (instanceof kırılır).
+peerDependencyRules:
+  ignoreMissing:
+    - class-validator
+    - class-transformer
 allowBuilds:
   '@parcel/watcher': true
+  '@scarf/scarf': set this to true or false
   '@swc/core': true
   less: true
   nx: true

@@ -29,6 +29,10 @@ export class UnitOfMeasureEntity {
     this.isActive = false;
   }
 
+  activate(): void {
+    this.isActive = true;
+  }
+
   makeBase(): void {
     this.isBaseUnit = true;
     this.factorToBase = "1.000000";

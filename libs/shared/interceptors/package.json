@@ -1,0 +1,15 @@
+{
+  "name": "@is-kontrol/shared-interceptors",
+  "version": "0.0.1",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@is-kontrol/shared-result": "workspace:*",
+    "tslib": "^2.3.0"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.0",
+    "rxjs": "^7.8.0"
+  }
+}

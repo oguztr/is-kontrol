@@ -1,55 +1,37 @@
-// libs/shared/result/src/result.ts
+export abstract class Result<T, E> {
+  abstract readonly isSuccess: boolean;
+  abstract readonly isFailure: boolean;
+  abstract match<U>(
+    onSuccess: (value: T) => U,
+    onFailure: (error: E) => U,
+  ): U;
+}
 
-export type Result<TValue, TError> = Success<TValue> | Failure<TError>;
+export class Success<T> extends Result<T, never> {
+  readonly isSuccess = true;
+  readonly isFailure = false;
 
-export class Success<TValue> {
-  readonly isSuccess = true as const;
-  readonly isFailure = false as const;
-  constructor(readonly value: TValue) {}
-
-  map<TNewValue>(fn: (value: TValue) => TNewValue): Result<TNewValue, never> {
-    return Result.ok(fn(this.value));
+  constructor(public readonly value: T) {
+    super();
   }
 
-  andThen<TNewValue, TNewError>(
-    fn: (value: TValue) => Result<TNewValue, TNewError>,
-  ): Result<TNewValue, TNewError> {
-    return fn(this.value);
+  match<U>(onSuccess: (value: T) => U, _onFailure: (error: never) => U): U {
+    return onSuccess(this.value);
   }
 }
 
-export class Failure<TError> {
-  readonly isSuccess = false as const;
-  readonly isFailure = true as const;
-  constructor(readonly error: TError) {}
+export class Failure<E> extends Result<never, E> {
+  readonly isSuccess = false;
+  readonly isFailure = true;
 
-  map(): Failure<TError> {
-    return this;
+  constructor(public readonly error: E) {
+    super();
   }
 
-  andThen(): Failure<TError> {
-    return this;
+  match<U>(_onSuccess: (value: never) => U, onFailure: (error: E) => U): U {
+    return onFailure(this.error);
   }
 }
 
-export const Result = {
-  ok<TValue>(value: TValue): Success<TValue> {
-    return new Success(value);
-  },
-  fail<TError>(error: TError): Failure<TError> {
-    return new Failure(error);
-  },
-};
-
-// Kullanışlı bir match helper - exhaustive handling zorunlu kılar
-export function match<TValue, TError, TReturn>(
-  result: Result<TValue, TError>,
-  handlers: {
-    onSuccess: (value: TValue) => TReturn;
-    onFailure: (error: TError) => TReturn;
-  },
-): TReturn {
-  return result.isSuccess
-    ? handlers.onSuccess(result.value)
-    : handlers.onFailure(result.error);
-}
+/** Domain hatalarının ortak şekli: ayırt edici alan `code`. */
+export type DomainError = { code: string };

@@ -6,6 +6,8 @@ export class StockBalanceEntity {
   public quantity: string;
   public averageCost: string;
   public lastMovementId: string | null;
+  /** Optimistic locking sürümü; yazma anında beklenen mevcut sürümdür. */
+  public readonly version: number;
   public updatedAt: Date;
 
   constructor(params: {
@@ -16,6 +18,7 @@ export class StockBalanceEntity {
     quantity: string;
     averageCost: string;
     lastMovementId: string | null;
+    version?: number;
     updatedAt: Date;
   }) {
     this.id = params.id;
@@ -25,6 +28,7 @@ export class StockBalanceEntity {
     this.quantity = params.quantity;
     this.averageCost = params.averageCost;
     this.lastMovementId = params.lastMovementId;
+    this.version = params.version ?? 0;
     this.updatedAt = params.updatedAt;
   }
 

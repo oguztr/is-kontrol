@@ -26,6 +26,10 @@ describe('domainErrorToHttpStatus', () => {
     ],
     [
       { code: 'PRODUCT_NOT_FOUND', productId: 'product-id' },
+      HttpStatus.NOT_FOUND,
+    ],
+    [
+      { code: 'LINE_PRODUCT_NOT_FOUND', productId: 'product-id' },
       HttpStatus.UNPROCESSABLE_ENTITY,
     ],
     [

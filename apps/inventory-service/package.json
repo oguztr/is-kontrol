@@ -7,11 +7,15 @@
     "migrate": "drizzle-kit migrate --config=drizzle.write.config.ts"
   },
   "dependencies": {
+    "@is-kontrol/shared-interceptors": "workspace:*",
+    "@is-kontrol/shared-result": "workspace:*",
+    "@is-kontrol/shared-validation": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/cqrs": "^11.0.3",
     "@nestjs/microservices": "^11.1.27",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.4.5",
     "dotenv": "^17.4.2",
     "kafkajs": "^2.2.4",
     "postgres": "^3.4.9",

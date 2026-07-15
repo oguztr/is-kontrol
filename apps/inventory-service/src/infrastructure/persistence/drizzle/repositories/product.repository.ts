@@ -1,4 +1,5 @@
-import { and, asc, eq, ilike, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import type { IProductRepository, ProductListFilter } from '../../../../domain/repositories/product.repository.interface'
 import { ProductEntity } from '../../../../domain/entities/product.entity'
 import type { DbExecutor, DrizzleTransactionHost } from '../drizzle.provider'
@@ -40,11 +41,19 @@ export class DrizzleProductRepository implements IProductRepository {
   }
 
   async list(filter: ProductListFilter): Promise<ProductEntity[]> {
-    const conditions = [eq(products.companyId, filter.companyId), isNull(products.deletedAt)];
+    const conditions: (SQL | undefined)[] = [eq(products.companyId, filter.companyId), isNull(products.deletedAt)];
     if (filter.categoryId) conditions.push(eq(products.categoryId, filter.categoryId));
     if (filter.isActive !== undefined) conditions.push(eq(products.isActive, filter.isActive));
     conditions.push(filter.isArchived ? isNotNull(products.archivedAt) : isNull(products.archivedAt));
     if (filter.name) conditions.push(ilike(products.name, `%${filter.name}%`));
+    if (filter.search) {
+      const pattern = `%${filter.search}%`;
+      conditions.push(or(
+        ilike(products.name, pattern),
+        ilike(products.sku, pattern),
+        ilike(products.barcode, pattern),
+      ));
+    }
     const rows = await this.db.select().from(products).where(and(...conditions))
       .orderBy(asc(products.name), asc(products.id));
     return rows.map((row) => this.toEntity(row));

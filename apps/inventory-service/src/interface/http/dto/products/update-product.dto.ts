@@ -26,6 +26,11 @@ export const productListQuerySchema = z.object({
   name: z.string().trim().min(1).max(255).optional(),
 });
 export const productLookupQuerySchema = z.object({ companyId: z.string().uuid() });
+export const productSearchQuerySchema = z.object({
+  companyId: z.string().uuid(),
+  q: z.string().trim().min(1).max(255),
+  isActive: z.enum(['true', 'false']).transform((value) => value === 'true').optional(),
+});
 export const changeBaseUnitSchema = z.object({ baseUnitId: z.string().uuid() });
 export const stockLevelsSchema = z.object({
   minStockLevel: stockLevelSchema,
@@ -33,5 +38,6 @@ export const stockLevelsSchema = z.object({
 });
 export type ProductListQueryDto = z.infer<typeof productListQuerySchema>;
 export type ProductLookupQueryDto = z.infer<typeof productLookupQuerySchema>;
+export type ProductSearchQueryDto = z.infer<typeof productSearchQuerySchema>;
 export type ChangeBaseUnitDto = z.infer<typeof changeBaseUnitSchema>;
 export type StockLevelsDto = z.infer<typeof stockLevelsSchema>;

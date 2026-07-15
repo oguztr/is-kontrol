@@ -19,6 +19,9 @@
   "references": [
     {
       "path": "./tsconfig.app.json"
-    }
+    },
+    { "path": "../../libs/shared/result/tsconfig.lib.json" },
+    { "path": "../../libs/shared/interceptors/tsconfig.lib.json" },
+    { "path": "../../libs/shared/validation/tsconfig.lib.json" }
   ]
 }

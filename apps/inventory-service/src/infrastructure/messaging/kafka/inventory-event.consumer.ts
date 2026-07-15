@@ -4,6 +4,7 @@ import { lastValueFrom } from 'rxjs';
 import { ZodError } from 'zod';
 import { ConsumedEventDispatcher } from '../../../application/event-handlers/consumed-event.dispatcher'
 import { parseConsumedEventPayload } from '../../../application/event-handlers/consumed-event.schemas'
+import { CorrelationContext } from '../../correlation/correlation-context';
 import { KAFKA_CLIENT } from './kafka.module';
 
 // Diğer servislerin event'lerini tüketir ve idempotent dispatcher'a iletir.
@@ -13,6 +14,7 @@ import { KAFKA_CLIENT } from './kafka.module';
 export class InventoryEventConsumer {
   constructor(
     private readonly dispatcher: ConsumedEventDispatcher,
+    private readonly correlation: CorrelationContext,
     @Inject(KAFKA_CLIENT) private readonly kafkaClient: ClientKafka,
   ) {}
 
@@ -82,14 +84,19 @@ export class InventoryEventConsumer {
     const eventId =
       headerEventId ??
       `${context.getTopic()}-${context.getPartition()}-${message.offset}`;
+    // Üretici correlation göndermediyse event zinciri buradan başlar.
+    const correlationId =
+      message.headers?.['correlation-id']?.toString() ?? crypto.randomUUID();
 
     try {
       const validatedPayload = parseConsumedEventPayload(eventType, payload);
-      await this.dispatcher.dispatch({
-        eventId,
-        eventType,
-        payload: validatedPayload,
-      });
+      await this.correlation.run(correlationId, () =>
+        this.dispatcher.dispatch({
+          eventId,
+          eventType,
+          payload: validatedPayload,
+        }),
+      );
     } catch (error) {
       if (!(error instanceof ZodError)) {
         throw error;

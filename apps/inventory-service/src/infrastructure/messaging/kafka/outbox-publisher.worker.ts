@@ -49,6 +49,9 @@ export class OutboxPublisherWorker {
                 'event-id': event.id,
                 'event-version': '1',
                 'source-service': 'inventory-service',
+                ...(event.correlationId
+                  ? { 'correlation-id': event.correlationId }
+                  : {}),
               },
             }),
           );

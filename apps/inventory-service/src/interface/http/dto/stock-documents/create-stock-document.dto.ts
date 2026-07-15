@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const decimalSchema = (integerDigits: number, scale: number) =>
+export const decimalSchema = (integerDigits: number, scale: number) =>
   z
     .string()
     .regex(
@@ -8,7 +8,7 @@ const decimalSchema = (integerDigits: number, scale: number) =>
       `Must be a non-negative decimal with at most ${integerDigits} integer and ${scale} decimal digits`,
     );
 
-const documentLineSchema = z.object({
+export const documentLineSchema = z.object({
   productId: z.string().uuid(),
   unitId: z.string().uuid(),
   quantity: decimalSchema(14, 4).refine((value) => Number(value) > 0, {
@@ -22,7 +22,7 @@ export const createStockDocumentSchema = z.object({
   companyId: z.string().uuid(),
   documentNumber: z.string().min(1).max(50),
   documentType: z.enum([
-    'PURCHASE', 'SALE', 'TRANSFER', 'ADJUSTMENT',
+    'PURCHASE', 'SALE', 'TRANSFER', 'ADJUSTMENT', 'ADJUSTMENT_OUT',
     'RETURN_IN', 'RETURN_OUT', 'PRODUCTION_IN', 'PRODUCTION_OUT', 'OPENING',
   ]),
   warehouseId: z.string().uuid(),

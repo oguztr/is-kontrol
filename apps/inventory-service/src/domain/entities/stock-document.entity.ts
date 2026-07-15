@@ -3,6 +3,7 @@ export type DocumentType =
   | "SALE"
   | "TRANSFER"
   | "ADJUSTMENT"
+  | "ADJUSTMENT_OUT"
   | "RETURN_IN"
   | "RETURN_OUT"
   | "PRODUCTION_IN"
@@ -19,10 +20,10 @@ export class StockDocumentEntity {
   public status: DocumentStatus;
   public readonly warehouseId: string;
   public readonly targetWarehouseId: string | null;
-  public readonly partnerId: string | null;
+  public partnerId: string | null;
   public readonly currencyId: string;
   public exchangeRate: string;
-  public readonly documentDate: Date;
+  public documentDate: Date;
   public notes: string | null;
   public readonly createdBy: string | null;
   public readonly createdAt: Date;
@@ -61,6 +62,18 @@ export class StockDocumentEntity {
 
   post(): void {
     this.status = "POSTED";
+  }
+
+  updateDraft(input: {
+    documentDate?: Date;
+    partnerId?: string | null;
+    exchangeRate?: string;
+    notes?: string | null;
+  }): void {
+    if (input.documentDate !== undefined) this.documentDate = input.documentDate;
+    if (input.partnerId !== undefined) this.partnerId = input.partnerId;
+    if (input.exchangeRate !== undefined) this.exchangeRate = input.exchangeRate;
+    if (input.notes !== undefined) this.notes = input.notes;
   }
 
   cancel(): void {

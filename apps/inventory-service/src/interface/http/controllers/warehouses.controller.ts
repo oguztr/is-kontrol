@@ -1,49 +1,78 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
-import { WarehouseManagementUseCase } from '../../../application/use-cases/warehouse-management.use-case';
-import { unwrapDomainResult } from '../domain-error.mapper';
-import { ZodValidationPipe } from '../zod-validation.pipe';
-import { idParamSchema } from '../dto/common/id-param.dto';
-import type { IdParamDto } from '../dto/common/id-param.dto';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseInterceptors } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { ZodBody, ZodQueries } from '../openapi/zod-openapi';
+import { ZodValidationPipe, idParamSchema } from '@is-kontrol/shared-validation';
+import type { IdParamDto } from '@is-kontrol/shared-validation';
+import { CreateWarehouseCommand } from '../../../application/commands/warehouses/create-warehouse/create-warehouse.command';
+import { CreateWarehouseHandler } from '../../../application/commands/warehouses/create-warehouse/create-warehouse.handler';
+import { UpdateWarehouseCommand } from '../../../application/commands/warehouses/update-warehouse/update-warehouse.command';
+import { UpdateWarehouseHandler } from '../../../application/commands/warehouses/update-warehouse/update-warehouse.handler';
+import { ActivateWarehouseCommand } from '../../../application/commands/warehouses/activate-warehouse/activate-warehouse.command';
+import { ActivateWarehouseHandler } from '../../../application/commands/warehouses/activate-warehouse/activate-warehouse.handler';
+import { DeactivateWarehouseCommand } from '../../../application/commands/warehouses/deactivate-warehouse/deactivate-warehouse.command';
+import { DeactivateWarehouseHandler } from '../../../application/commands/warehouses/deactivate-warehouse/deactivate-warehouse.handler';
+import { DeleteWarehouseCommand } from '../../../application/commands/warehouses/delete-warehouse/delete-warehouse.command';
+import { DeleteWarehouseHandler } from '../../../application/commands/warehouses/delete-warehouse/delete-warehouse.handler';
+import { GetWarehouseQuery } from '../../../application/queries/warehouses/get-warehouse/get-warehouse.query';
+import { GetWarehouseHandler } from '../../../application/queries/warehouses/get-warehouse/get-warehouse.handler';
+import { ListWarehousesQuery } from '../../../application/queries/warehouses/list-warehouses/list-warehouses.query';
+import { ListWarehousesHandler } from '../../../application/queries/warehouses/list-warehouses/list-warehouses.handler';
+import { InventoryDomainResultInterceptor } from '../domain-result.interceptor';
 import { createWarehouseSchema, updateWarehouseSchema, warehouseListQuerySchema } from '../dto/warehouses/warehouse.dto';
 import type { CreateWarehouseDto, UpdateWarehouseDto, WarehouseListQueryDto } from '../dto/warehouses/warehouse.dto';
 
+@ApiTags('warehouses')
 @Controller('warehouses')
+@UseInterceptors(InventoryDomainResultInterceptor)
 export class WarehousesController {
-  constructor(private readonly useCase: WarehouseManagementUseCase) {}
+  constructor(
+    private readonly createWarehouse: CreateWarehouseHandler,
+    private readonly updateWarehouse: UpdateWarehouseHandler,
+    private readonly activateWarehouse: ActivateWarehouseHandler,
+    private readonly deactivateWarehouse: DeactivateWarehouseHandler,
+    private readonly deleteWarehouse: DeleteWarehouseHandler,
+    private readonly getWarehouse: GetWarehouseHandler,
+    private readonly listWarehouses: ListWarehousesHandler,
+  ) {}
 
+  @ZodBody(createWarehouseSchema)
   @Post() @HttpCode(HttpStatus.CREATED)
   async create(@Body(new ZodValidationPipe(createWarehouseSchema)) body: CreateWarehouseDto) {
-    return unwrapDomainResult(await this.useCase.create({ ...body, address: body.address ?? null }));
+    return this.createWarehouse.execute(
+      new CreateWarehouseCommand(body.companyId, body.code, body.name, body.address ?? null));
   }
 
+  @ZodBody(updateWarehouseSchema)
   @Patch(':id')
   async update(@Param('id', new ZodValidationPipe(idParamSchema)) id: IdParamDto,
     @Body(new ZodValidationPipe(updateWarehouseSchema)) body: UpdateWarehouseDto) {
-    unwrapDomainResult(await this.useCase.update(id, body.name, body.address ?? null));
+    return this.updateWarehouse.execute(
+      new UpdateWarehouseCommand(id, body.name, body.address ?? null));
   }
 
   @Patch(':id/deactivate') @HttpCode(HttpStatus.NO_CONTENT)
   async deactivate(@Param('id', new ZodValidationPipe(idParamSchema)) id: IdParamDto) {
-    unwrapDomainResult(await this.useCase.deactivate(id));
+    return this.deactivateWarehouse.execute(new DeactivateWarehouseCommand(id));
   }
 
   @Patch(':id/activate') @HttpCode(HttpStatus.NO_CONTENT)
   async activate(@Param('id', new ZodValidationPipe(idParamSchema)) id: IdParamDto) {
-    unwrapDomainResult(await this.useCase.activate(id));
+    return this.activateWarehouse.execute(new ActivateWarehouseCommand(id));
   }
 
   @Delete(':id') @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id', new ZodValidationPipe(idParamSchema)) id: IdParamDto) {
-    unwrapDomainResult(await this.useCase.delete(id));
+    return this.deleteWarehouse.execute(new DeleteWarehouseCommand(id));
   }
 
+  @ZodQueries(warehouseListQuerySchema)
   @Get()
   async list(@Query(new ZodValidationPipe(warehouseListQuerySchema)) query: WarehouseListQueryDto) {
-    return unwrapDomainResult(await this.useCase.list(query.companyId));
+    return this.listWarehouses.execute(new ListWarehousesQuery(query.companyId));
   }
 
   @Get(':id')
   async get(@Param('id', new ZodValidationPipe(idParamSchema)) id: IdParamDto) {
-    return unwrapDomainResult(await this.useCase.get(id));
+    return this.getWarehouse.execute(new GetWarehouseQuery(id));
   }
 }

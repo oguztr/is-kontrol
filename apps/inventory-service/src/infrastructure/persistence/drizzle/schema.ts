@@ -114,6 +114,7 @@ export const documentTypeEnum = pgEnum("document_type", [
   "SALE",
   "TRANSFER",
   "ADJUSTMENT",
+  "ADJUSTMENT_OUT",
   "RETURN_IN",
   "RETURN_OUT",
   "PRODUCTION_IN",
@@ -381,6 +382,7 @@ export const stockBalances = pgTable(
       () => stockMovements.id,
       { onDelete: "set null" },
     ),
+    version: integer("version").notNull().default(0),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -405,6 +407,7 @@ export const outboxEvents = pgTable(
     aggregateId: uuid("aggregate_id").notNull(),
     eventType: varchar("event_type", { length: 100 }).notNull(),
     payload: jsonb("payload").notNull(),
+    correlationId: varchar("correlation_id", { length: 100 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

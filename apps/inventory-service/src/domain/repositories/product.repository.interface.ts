@@ -6,6 +6,8 @@ export interface ProductListFilter {
   isActive?: boolean;
   isArchived?: boolean;
   name?: string;
+  /** Ad, SKU ve barkod üzerinde birleşik serbest metin araması. */
+  search?: string;
 }
 
 export interface IProductRepository {

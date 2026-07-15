@@ -45,6 +45,16 @@ All lib imports resolve via `tsconfig.base.json` path aliases:
 - `@is-kontrol/core-database` → `libs/core/database/src/index.ts`
 - `@is-kontrol/core-security` → `libs/core/security/src/index.ts`
 - `@is-kontrol/core-testing` → `libs/core/testing/src/index.ts`
+- `@is-kontrol/shared-result` → `libs/shared/result/src/index.ts`
+- `@is-kontrol/shared-interceptors` → `libs/shared/interceptors/src/index.ts`
+- `@is-kontrol/shared-validation` → `libs/shared/validation/src/index.ts`
+- `@is-kontrol/shared-constants` → `libs/shared/constants/src/index.ts`
+
+The `libs/shared/*` libs are tagged `scope:core`, so every app may depend on them:
+- **shared-result** — `Result` / `Success` / `Failure` + `DomainError`
+- **shared-interceptors** — `DomainResultInterceptor` (unwraps `Result` returned from controllers)
+- **shared-validation** — `ZodValidationPipe`, `idParamSchema` / `IdParamDto`
+- **shared-constants** — cross-service enums (e.g. `CurrencyCode`)
 
 ## Folder & coding standards
 
@@ -54,7 +64,11 @@ All lib imports resolve via `tsconfig.base.json` path aliases:
 src/
 ├── domain/entities/          # Plain entity classes (no ORM decorators)
 ├── infrastructure/           # Kafka clients, publishers, consumers, config
-├── use-cases/                # Application logic, one class per use case
+├── application/
+│   ├── commands/<aggregate>/<action>/   # One folder per command: *.command.ts + *.handler.ts
+│   ├── queries/<aggregate>/<action>/    # One folder per query: *.query.ts + *.handler.ts
+│   ├── event-handlers/                  # Consumed-event handlers (inbox)
+│   └── ports/                           # Framework-agnostic ports (UoW, actor, publisher)
 ├── main.ts                   # Bootstrap (NestFactory + connectMicroservice)
 ├── *.controller.ts           # HTTP endpoints
 └── *.module.ts               # NestJS module composition
@@ -74,7 +88,9 @@ src/
 | Layer | File | Class |
 |-------|------|-------|
 | Entity | `*.entity.ts` | `XxxEntity` |
-| Use case | `*.use-case.ts` | `XxxUseCase` |
+| Command | `*.command.ts` | `XxxCommand` |
+| Query | `*.query.ts` | `XxxQuery` |
+| Command/query handler | `*.handler.ts` | `XxxHandler` (single `execute(command)` method) |
 | HTTP controller | `*.controller.ts` | `XxxController` |
 | Kafka consumer | `*-event.consumer.ts` | `XxxEventConsumer` |
 | Kafka publisher | `*-event.publisher.ts` | `XxxEventPublisher` |
@@ -126,17 +142,17 @@ Services reference `KAFKA_BROKER` env var (defaults to `localhost:9092`). Ports 
 
 | Direction | Topics |
 |-----------|--------|
-| inventory → kafka | `product.created`, `stock.created`, `stock.moved`, `stock.reserved`, `stock.released` |
+| inventory → kafka | `product.*` (created/updated/activated/deactivated/archived/deleted/base-unit.changed/stock-levels.changed), `warehouse.*` (created/updated/activated/deactivated), `stock.document.*` (created/posted/cancelled), type-specific post events (`stock.purchase.received`, `stock.sale.shipped`, `stock.transfer.completed`, `stock.adjustment.applied`, `stock.return.received/sent`, `stock.production.received/issued`, `stock.opening.created`), `stock.increased`, `stock.decreased`, `stock.transferred`, `stock.balance.changed`, `stock.level.below-minimum`, `stock.level.above-maximum`, `inventory.cost.changed` |
 | sales → kafka | `quote.created`, `quote.updated`, `quote.sent`, `quote.accepted`, `quote.rejected`, `quote.expired`, `order.created`, `order.confirmed`, `order.shipped`, `order.cancelled`, `order.completed` |
 
 ## Result pattern
 
 Use cases return `Result<T, E>` -- a discriminated union of `Success` and `Failure` -- instead of throwing or returning ad-hoc objects. This makes error paths explicit in the type signature.
 
-### Type (will live in `libs/core/result/`)
+### Type (lives in `libs/shared/result/`, import from `@is-kontrol/shared-result`)
 
 ```ts
-// libs/core/result/src/result.ts
+// libs/shared/result/src/result.ts
 
 export abstract class Result<T, E> {
   abstract readonly isSuccess: boolean;
@@ -170,7 +186,7 @@ export class Failure<E> extends Result<never, E> {
   }
 }
 
-export type DomainError = { code: string; message: string };
+export type DomainError = { code: string };
 ```
 
 ### Usage in use cases
@@ -191,23 +207,40 @@ async execute(dto: CreateProductDto): Promise<Result<ProductResponseDto, DomainE
 
 ### Usage in controllers
 
+Controllers do NOT unwrap `Result` by hand. Each service derives a ready-made
+interceptor from `DomainResultInterceptor` (`@is-kontrol/shared-interceptors`)
+that maps its error codes to HTTP statuses, applies it at class level, and
+returns the `Result` as-is:
+
 ```ts
-@Post('products')
-async postProduct(@Body() payload: CreateProductDto) {
-  const result = await this.createProduct.execute(payload);
-  return result.match(
-    (product) => ({ data: product }),
-    (error) => { throw new HttpException(error, HttpStatus.BAD_REQUEST); }
-  );
+// <service>/src/interface/http/domain-result.interceptor.ts
+export class InventoryDomainResultInterceptor extends DomainResultInterceptor {
+  constructor() {
+    super(STATUS_BY_CODE); // Readonly<Record<ErrorCode, HttpStatus>>
+  }
+}
+
+// controller
+@Controller('products')
+@UseInterceptors(InventoryDomainResultInterceptor)
+export class ProductsController {
+  @Post()
+  async create(@Body() payload: CreateProductDto) {
+    return this.createProduct.execute(payload); // Result döner, interceptor açar
+  }
 }
 ```
+
+`Success` becomes the response body (a `Result<void, E>` yields an empty body);
+`Failure` is thrown as `HttpException` with the mapped status, or 500 with
+`{ code: 'UNKNOWN_DOMAIN_ERROR' }` when the code is not in the table.
 
 ### Rules
 
 - **No static factories** -- use `new Success(data)`, `new Failure(error)`. No `Result.ok()` or `Result.err()`
 - **Use cases return `Result`** -- never throw from use case code. All business failures become `Failure` values
-- **Controllers bridge to HTTP** -- the controller `match()` maps `Success` to a 2xx response and `Failure` to an HTTP exception
-- **DomainError is a value object** -- `{ code: string, message: string }`. Define domain-specific error codes per use case
+- **Controllers bridge to HTTP via the interceptor** -- the class-level `DomainResultInterceptor` subclass maps `Success` to a 2xx response and `Failure` to an HTTP exception; controllers return the `Result` untouched
+- **DomainError is a value object** -- discriminated on `code: string` plus context fields. Define domain-specific error codes per use case
 
 ## Gotchas
 

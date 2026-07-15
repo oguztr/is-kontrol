@@ -25,6 +25,10 @@ export class DrizzleTransactionHost {
     return this.storage.getStore() ?? this.rootDb;
   }
 
+  get inTransaction(): boolean {
+    return this.storage.getStore() !== undefined;
+  }
+
   async runInTransaction<T>(work: () => Promise<T>): Promise<T> {
     return this.rootDb.transaction(async (tx) => this.storage.run(tx, work));
   }

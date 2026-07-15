@@ -14,6 +14,7 @@ describe("OutboxPublisherWorker", () => {
     aggregateId: "00000000-0000-4000-8000-000000000002",
     eventType: "product.created",
     payload: { id: "00000000-0000-4000-8000-000000000002" },
+    correlationId: "00000000-0000-4000-8000-00000000c0de",
     createdAt: new Date("2026-07-12T00:00:00Z"),
     publishedAt: null,
   };

@@ -2,15 +2,91 @@
 import "dotenv/config";
 import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { Transport } from "@nestjs/microservices";
 import type { MicroserviceOptions } from "@nestjs/microservices";
 import { InventoryModule } from "./inventory.module";
 import { kafkaConfig } from "./config/kafka.config";
+import { CorrelationContext } from "./infrastructure/correlation/correlation-context";
+import { RequestActorContext } from "./infrastructure/auth/request-actor-context";
 
 async function bootstrap() {
   const app = await NestFactory.create(InventoryModule);
   app.setGlobalPrefix("inventory");
   app.enableShutdownHooks();
+
+  // Gelen x-correlation-id (yoksa üretilen UUID) istek bağlamına konur;
+  // outbox'a yazılan tüm eventler ve yanıt başlığı bu ID'yi taşır.
+  const correlation = app.get(CorrelationContext);
+  app.use(
+    (
+      req: { headers: Record<string, string | string[] | undefined> },
+      res: { setHeader: (name: string, value: string) => void },
+      next: () => void,
+    ) => {
+      const incoming = req.headers["x-correlation-id"];
+      const correlationId =
+        (Array.isArray(incoming) ? incoming[0] : incoming) ??
+        crypto.randomUUID();
+      res.setHeader("x-correlation-id", correlationId);
+      correlation.run(correlationId, next);
+    },
+  );
+
+  // Şirket izolasyonu: gateway/BFF'in doğruladığı x-company-id / x-user-id
+  // başlıkları aktör kapsamına konur; use case'ler kapsam dışı veriye erişimi
+  // notFound olarak reddeder. Başlıksız çağrılar kısıtlanmaz (iç trafik).
+  const actor = app.get(RequestActorContext);
+  app.use(
+    (
+      req: { headers: Record<string, string | string[] | undefined> },
+      _res: unknown,
+      next: () => void,
+    ) => {
+      const header = (name: string): string | null => {
+        const value = req.headers[name];
+        return (Array.isArray(value) ? value[0] : value) ?? null;
+      };
+      actor.run(
+        { companyId: header("x-company-id"), userId: header("x-user-id") },
+        next,
+      );
+    },
+  );
+
+  // Swagger UI: /inventory/docs — request şemaları zod'dan üretilir.
+  const openApiConfig = new DocumentBuilder()
+    .setTitle("Inventory Service API")
+    .setDescription(
+      "Stok yönetimi: ürünler, birimler, depolar, kategoriler, stok belgeleri, hareketler ve bakiyeler.",
+    )
+    .setVersion("0.0.1")
+    .addGlobalParameters(
+      {
+        name: "x-company-id",
+        in: "header",
+        required: false,
+        description: "Aktörün şirketi; verilirse veri izolasyonu uygulanır.",
+        schema: { type: "string", format: "uuid" },
+      },
+      {
+        name: "x-user-id",
+        in: "header",
+        required: false,
+        description: "Kimliği doğrulanmış kullanıcı (createdBy için).",
+        schema: { type: "string", format: "uuid" },
+      },
+      {
+        name: "x-correlation-id",
+        in: "header",
+        required: false,
+        description: "Uçtan uca izleme ID'si; verilmezse üretilir.",
+        schema: { type: "string" },
+      },
+    )
+    .build();
+  const openApiDocument = SwaggerModule.createDocument(app, openApiConfig);
+  SwaggerModule.setup("inventory/docs", app, openApiDocument);
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.KAFKA,

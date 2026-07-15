@@ -1,0 +1,16 @@
+{
+  "name": "shared-interceptors",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/interceptors/src",
+  "projectType": "library",
+  "tags": ["scope:core", "type:lib"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --build tsconfig.lib.json --emitDeclarationOnly --force",
+        "cwd": "libs/shared/interceptors"
+      }
+    }
+  }
+}

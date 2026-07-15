@@ -2,18 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "types": [
-      "node"
-    ],
-    "rootDir": "src",
+    "types": ["node"],
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "target": "es2021"
   },
-  "include": [
-    "src/**/*.ts"
-, "drizzle.config.ts"  ],
+  "include": ["src/**/*.ts", "drizzle.config.ts"],
   "exclude": [
     "out-tsc",
     "dist",
@@ -25,5 +20,9 @@
     "eslint.config.cjs",
     "eslint.config.mjs"
   ],
-  "references": []
+  "references": [
+    { "path": "../../libs/shared/result/tsconfig.lib.json" },
+    { "path": "../../libs/shared/interceptors/tsconfig.lib.json" },
+    { "path": "../../libs/shared/validation/tsconfig.lib.json" }
+  ]
 }
