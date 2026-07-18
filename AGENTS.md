@@ -8,6 +8,7 @@ pnpm mobile:start                         # Metro bundler
 pnpm bff:serve                            # BFF on :4000
 pnpm inventory:serve                      # inventory-service on :3001
 pnpm sales:serve                          # sales-service on :3002
+pnpm customer:serve                       # customer-service on :3003
 pnpm build:all                            # build everything
 pnpm lint                                 # lint all projects
 pnpm test                                 # test all projects
@@ -29,12 +30,14 @@ nx typecheck mobile-bff
 - **mobile-bff** (NestJS 11, Express) -- HTTP proxy/aggregation at `/bff`; does **not** use Kafka
 - **inventory-service** (NestJS 11 + Kafka transport) -- HTTP at `/inventory`, Kafka consumer + producer
 - **sales-service** (NestJS 11 + Kafka transport) -- HTTP at `/sales`, Kafka consumer + producer
+- **customer-service** (NestJS 11 + Kafka transport) -- mini CRM, HTTP at `/customers`, Kafka consumer + producer; source of truth for the unified Partner model (customer + supplier); feeds inventory's `business_partner_references` via `partner.*` events
 - **Shared libs**: `@is-kontrol/inventory-contracts`, `@is-kontrol/sales-contracts`, `@is-kontrol/core-database`, `@is-kontrol/core-security`, `@is-kontrol/core-testing`
 
 Tag-based dependency rules enforced by `@nx/enforce-module-boundaries` in `eslint.config.mjs`:
 - `scope:mobile` can depend on `scope:core | scope:inventory | scope:sales`
 - `scope:mobile-bff` can depend on `scope:inventory | scope:sales | scope:core`
 - `scope:inventory` can depend on `scope:inventory | scope:core`
+- `scope:customer` can depend on `scope:customer | scope:core`
 - `scope:sales` can depend on `scope:sales | scope:inventory | scope:core`
 - `type:contracts` can depend only on `scope:core`
 - `scope:core` can depend only on `scope:core`
@@ -144,6 +147,9 @@ Services reference `KAFKA_BROKER` env var (defaults to `localhost:9092`). Ports 
 |-----------|--------|
 | inventory → kafka | `product.*` (created/updated/activated/deactivated/archived/deleted/base-unit.changed/stock-levels.changed), `warehouse.*` (created/updated/activated/deactivated), `stock.document.*` (created/posted/cancelled), type-specific post events (`stock.purchase.received`, `stock.sale.shipped`, `stock.transfer.completed`, `stock.adjustment.applied`, `stock.return.received/sent`, `stock.production.received/issued`, `stock.opening.created`), `stock.increased`, `stock.decreased`, `stock.transferred`, `stock.balance.changed`, `stock.level.below-minimum`, `stock.level.above-maximum`, `inventory.cost.changed` |
 | sales → kafka | `quote.created`, `quote.updated`, `quote.sent`, `quote.accepted`, `quote.rejected`, `quote.expired`, `order.created`, `order.confirmed`, `order.shipped`, `order.cancelled`, `order.completed` |
+| customer → kafka | `partner.created`, `partner.updated`, `partner.type-changed`, `partner.status-changed`, `partner.deleted`, `partner.merged` (payload `type` alanı CUSTOMER/SUPPLIER/BOTH taşır), `contact.created`, `contact.updated` |
+| kafka → inventory | `company.*`, `currency.*`, `exchange-rate.updated`, `partner.*` (customer-service'ten; `business_partner_references` cache'ini besler) |
+| kafka → customer | `company.*` (created/updated/activated/deactivated), `product.*` (created/updated/activated/deactivated/archived/deleted; inventory-service'ten, `product_references` cache'ini besler) |
 
 ## Result pattern
 

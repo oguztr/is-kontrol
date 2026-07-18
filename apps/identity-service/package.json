@@ -1,0 +1,32 @@
+{
+  "name": "@is-kontrol/identity-service",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "generate": "drizzle-kit generate --config=drizzle.write.config.ts",
+    "migrate": "drizzle-kit migrate --config=drizzle.write.config.ts"
+  },
+  "dependencies": {
+    "@is-kontrol/shared-interceptors": "workspace:*",
+    "@is-kontrol/shared-result": "workspace:*",
+    "@is-kontrol/shared-validation": "workspace:*",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/microservices": "^11.1.27",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.4.5",
+    "dotenv": "^17.4.2",
+    "jose": "^6.0.11",
+    "kafkajs": "^2.2.4",
+    "postgres": "^3.4.9",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.3.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.0.0",
+    "drizzle-kit": "1.0.0-rc.4",
+    "drizzle-orm": "^1.0.0-rc.4"
+  }
+}

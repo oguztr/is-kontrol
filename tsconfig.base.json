@@ -24,6 +24,7 @@
       "@is-kontrol/core-database": ["libs/core/database/src/index.ts"],
       "@is-kontrol/core-security": ["libs/core/security/src/index.ts"],
       "@is-kontrol/core-testing": ["libs/core/testing/src/index.ts"],
+      "@is-kontrol/shared-auth": ["libs/shared/auth/src/index.ts"],
       "@is-kontrol/shared-result": ["libs/shared/result/src/index.ts"],
       "@is-kontrol/shared-interceptors": ["libs/shared/interceptors/src/index.ts"],
       "@is-kontrol/shared-validation": ["libs/shared/validation/src/index.ts"],

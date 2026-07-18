@@ -9,10 +9,12 @@
     "bff:serve": "nx serve mobile-bff",
     "inventory:serve": "nx serve inventory-service",
     "sales:serve": "nx serve sales-service",
+    "customer:serve": "nx serve customer-service",
     "build:all": "nx run-many -t build",
     "lint": "nx run-many -t lint",
     "test": "nx run-many -t test",
-    "graph": "nx graph"
+    "graph": "nx graph",
+    "identity:serve": "nx serve identity-service"
   },
   "private": true,
   "devDependencies": {

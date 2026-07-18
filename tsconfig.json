@@ -14,6 +14,12 @@
     },
     {
       "path": "./apps/sales-service"
+    },
+    {
+      "path": "./apps/customer-service"
+    },
+    {
+      "path": "./apps/identity-service"
     }
   ]
 }

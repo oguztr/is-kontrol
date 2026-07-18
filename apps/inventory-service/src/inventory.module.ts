@@ -34,16 +34,16 @@ import { KafkaEventPublisher } from "./infrastructure/messaging/kafka/kafka-even
 import { CorrelationContext } from "./infrastructure/correlation/correlation-context";
 import { RequestActorContext } from "./infrastructure/auth/request-actor-context";
 import { OutboxPublisherWorker } from "./infrastructure/messaging/kafka/outbox-publisher.worker";
+import { OutboxWakeupListener } from "./infrastructure/messaging/kafka/outbox-wakeup.listener";
 import { MessagingWorkersLifecycle } from "./infrastructure/messaging/kafka/messaging-workers.lifecycle";
 import { InventoryEventConsumer } from "./infrastructure/messaging/kafka/inventory-event.consumer";
 import { ConsumedEventDispatcher } from "./application/event-handlers/consumed-event.dispatcher";
 import type { IConsumedEventHandler } from "./application/event-handlers/consumed-event";
 import { CompanyCreatedHandler } from "./application/event-handlers/company-created.handler";
 import { CurrencyCreatedHandler } from "./application/event-handlers/currency-created.handler";
-import { SupplierCreatedHandler } from "./application/event-handlers/supplier-created.handler";
-import { CustomerCreatedHandler } from "./application/event-handlers/customer-created.handler";
 import { ExchangeRateUpdatedHandler } from "./application/event-handlers/exchange-rate-updated.handler";
-import { BusinessPartnerSyncedHandler } from "./application/event-handlers/business-partner-synced.handler";
+import { PartnerCreatedHandler } from "./application/event-handlers/partner-created.handler";
+import { PartnerMergedHandler } from "./application/event-handlers/partner-merged.handler";
 import {
   BusinessPartnerReferenceStatusChangedHandler,
   CompanyReferenceStatusChangedHandler,
@@ -396,10 +396,9 @@ const DOCUMENT_DRAFT_DEPS = [
     // --- tüketilen event handler'ları ---
     handlerProvider(CompanyCreatedHandler, [DrizzleCompanyReferenceRepository]),
     handlerProvider(CurrencyCreatedHandler, [DrizzleCurrencyReferenceRepository]),
-    handlerProvider(SupplierCreatedHandler, [DrizzleBusinessPartnerReferenceRepository]),
-    handlerProvider(CustomerCreatedHandler, [DrizzleBusinessPartnerReferenceRepository]),
     handlerProvider(ExchangeRateUpdatedHandler, [DrizzleExchangeRateReferenceRepository]),
-    handlerProvider(BusinessPartnerSyncedHandler, [DrizzleBusinessPartnerReferenceRepository]),
+    handlerProvider(PartnerCreatedHandler, [DrizzleBusinessPartnerReferenceRepository]),
+    handlerProvider(PartnerMergedHandler, [DrizzleBusinessPartnerReferenceRepository]),
     handlerProvider(CompanyReferenceStatusChangedHandler, [DrizzleCompanyReferenceRepository]),
     handlerProvider(CurrencyReferenceStatusChangedHandler, [DrizzleCurrencyReferenceRepository]),
     handlerProvider(BusinessPartnerReferenceStatusChangedHandler, [DrizzleBusinessPartnerReferenceRepository]),
@@ -420,7 +419,16 @@ const DOCUMENT_DRAFT_DEPS = [
         ),
       inject: [DrizzleOutboxRepository, KAFKA_CLIENT, DrizzleUnitOfWork],
     },
-    handlerProvider(MessagingWorkersLifecycle, [OutboxPublisherWorker]),
+    // LISTEN, havuzdan bağımsız kendi bağlantısını kullanır; drizzle'ın
+    // sarmaladığı ham postgres-js client'ı bu yüzden doğrudan verilir.
+    {
+      provide: OutboxWakeupListener,
+      useFactory: (worker: OutboxPublisherWorker) =>
+        new OutboxWakeupListener(writeDb.$client, worker),
+      inject: [OutboxPublisherWorker],
+    },
+    handlerProvider(MessagingWorkersLifecycle, [
+      OutboxPublisherWorker, OutboxWakeupListener]),
 
     // --- idempotent consumer dispatcher'ı ---
     {
@@ -430,10 +438,9 @@ const DOCUMENT_DRAFT_DEPS = [
         processedEventRepository: DrizzleProcessedEventRepository,
         companyCreatedHandler: CompanyCreatedHandler,
         currencyCreatedHandler: CurrencyCreatedHandler,
-        supplierCreatedHandler: SupplierCreatedHandler,
-        customerCreatedHandler: CustomerCreatedHandler,
         exchangeRateUpdatedHandler: ExchangeRateUpdatedHandler,
-        businessPartnerSyncedHandler: BusinessPartnerSyncedHandler,
+        partnerCreatedHandler: PartnerCreatedHandler,
+        partnerMergedHandler: PartnerMergedHandler,
         companyStatusHandler: CompanyReferenceStatusChangedHandler,
         currencyStatusHandler: CurrencyReferenceStatusChangedHandler,
         partnerStatusHandler: BusinessPartnerReferenceStatusChangedHandler,
@@ -451,18 +458,13 @@ const DOCUMENT_DRAFT_DEPS = [
             ["currency.activated", currencyStatusHandler],
             ["currency.deactivated", currencyStatusHandler],
             ["exchange-rate.updated", exchangeRateUpdatedHandler],
-            ["supplier.created", supplierCreatedHandler],
-            ["supplier.updated", supplierCreatedHandler],
-            ["supplier.activated", partnerStatusHandler],
-            ["supplier.deactivated", partnerStatusHandler],
-            ["customer.created", customerCreatedHandler],
-            ["customer.updated", customerCreatedHandler],
-            ["customer.activated", partnerStatusHandler],
-            ["customer.deactivated", partnerStatusHandler],
-            ["business-partner.created", businessPartnerSyncedHandler],
-            ["business-partner.updated", businessPartnerSyncedHandler],
-            ["business-partner.activated", partnerStatusHandler],
-            ["business-partner.deactivated", partnerStatusHandler],
+            // customer-service partner.* kataloğu: tip bilgisi payload'da.
+            ["partner.created", partnerCreatedHandler],
+            ["partner.updated", partnerCreatedHandler],
+            ["partner.type-changed", partnerCreatedHandler],
+            ["partner.status-changed", partnerStatusHandler],
+            ["partner.deleted", partnerStatusHandler],
+            ["partner.merged", partnerMergedHandler],
           ]),
         ),
       inject: [
@@ -470,10 +472,9 @@ const DOCUMENT_DRAFT_DEPS = [
         DrizzleProcessedEventRepository,
         CompanyCreatedHandler,
         CurrencyCreatedHandler,
-        SupplierCreatedHandler,
-        CustomerCreatedHandler,
         ExchangeRateUpdatedHandler,
-        BusinessPartnerSyncedHandler,
+        PartnerCreatedHandler,
+        PartnerMergedHandler,
         CompanyReferenceStatusChangedHandler,
         CurrencyReferenceStatusChangedHandler,
         BusinessPartnerReferenceStatusChangedHandler,

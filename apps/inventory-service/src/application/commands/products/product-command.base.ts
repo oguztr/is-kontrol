@@ -44,6 +44,9 @@ export abstract class ProductCommandHandlerBase {
         const changeError = await change(product);
         if (changeError) return changeError;
         await this.products.update(product);
+        /* Snapshot alanları diğer servislerin (customer-service) reference
+         * cache'lerini tek event'ten besleyebilmesi için taşınır; arşivli veya
+         * silinmiş ürün tüketiciler için pasif sayılır. */
         await this.publisher.publish({
           aggregateType: "Product",
           aggregateId: product.id,
@@ -51,6 +54,12 @@ export abstract class ProductCommandHandlerBase {
           payload: {
             id: product.id,
             companyId: product.companyId,
+            sku: product.sku,
+            barcode: product.barcode,
+            name: product.name,
+            baseUnitId: product.baseUnitId,
+            isActive:
+              product.isActive && !product.archivedAt && !product.deletedAt,
             occurredAt: new Date().toISOString(),
           },
         });

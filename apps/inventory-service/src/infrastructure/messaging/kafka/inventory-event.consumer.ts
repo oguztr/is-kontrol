@@ -44,35 +44,22 @@ export class InventoryEventConsumer {
   @EventPattern('exchange-rate.updated')
   async onExchangeRateUpdated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('exchange-rate.updated', payload, context); }
 
-  @EventPattern('supplier.created')
-  async onSupplierCreated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) {
-    await this.dispatch('supplier.created', payload, context);
+  // customer-service'in tek partner modeli: müşteri/tedarikçi ayrımı payload
+  // içindeki type alanıyla gelir (CUSTOMER/SUPPLIER/BOTH).
+  @EventPattern('partner.created')
+  async onPartnerCreated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) {
+    await this.dispatch('partner.created', payload, context);
   }
-  @EventPattern('supplier.updated')
-  async onSupplierUpdated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('supplier.updated', payload, context); }
-  @EventPattern('supplier.activated')
-  async onSupplierActivated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('supplier.activated', payload, context); }
-  @EventPattern('supplier.deactivated')
-  async onSupplierDeactivated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('supplier.deactivated', payload, context); }
-
-  @EventPattern('customer.created')
-  async onCustomerCreated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) {
-    await this.dispatch('customer.created', payload, context);
-  }
-  @EventPattern('customer.updated')
-  async onCustomerUpdated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('customer.updated', payload, context); }
-  @EventPattern('customer.activated')
-  async onCustomerActivated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('customer.activated', payload, context); }
-  @EventPattern('customer.deactivated')
-  async onCustomerDeactivated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('customer.deactivated', payload, context); }
-  @EventPattern('business-partner.created')
-  async onPartnerCreated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('business-partner.created', payload, context); }
-  @EventPattern('business-partner.updated')
-  async onPartnerUpdated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('business-partner.updated', payload, context); }
-  @EventPattern('business-partner.activated')
-  async onPartnerActivated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('business-partner.activated', payload, context); }
-  @EventPattern('business-partner.deactivated')
-  async onPartnerDeactivated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('business-partner.deactivated', payload, context); }
+  @EventPattern('partner.updated')
+  async onPartnerUpdated(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('partner.updated', payload, context); }
+  @EventPattern('partner.type-changed')
+  async onPartnerTypeChanged(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('partner.type-changed', payload, context); }
+  @EventPattern('partner.status-changed')
+  async onPartnerStatusChanged(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('partner.status-changed', payload, context); }
+  @EventPattern('partner.deleted')
+  async onPartnerDeleted(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('partner.deleted', payload, context); }
+  @EventPattern('partner.merged')
+  async onPartnerMerged(@Payload() payload: Record<string, unknown>, @Ctx() context: KafkaContext) { await this.dispatch('partner.merged', payload, context); }
 
   private async dispatch(
     eventType: string,

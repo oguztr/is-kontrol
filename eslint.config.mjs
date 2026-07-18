@@ -33,6 +33,14 @@ export default [
               onlyDependOnLibsWithTags: ['scope:inventory', 'scope:core'],
             },
             {
+              sourceTag: 'scope:customer',
+              onlyDependOnLibsWithTags: ['scope:customer', 'scope:core'],
+            },
+            {
+              sourceTag: 'scope:identity',
+              onlyDependOnLibsWithTags: ['scope:identity', 'scope:core'],
+            },
+            {
               sourceTag: 'scope:sales',
               onlyDependOnLibsWithTags: ['scope:sales', 'scope:inventory', 'scope:core'],
             },

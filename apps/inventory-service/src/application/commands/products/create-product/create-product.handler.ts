@@ -158,6 +158,7 @@ export class CreateProductHandler {
             barcode: product.barcode,
             name: product.name,
             baseUnitId: product.baseUnitId,
+            isActive: product.isActive,
             occurredAt: new Date().toISOString(),
           },
         });

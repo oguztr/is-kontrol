@@ -17,11 +17,20 @@ const currencyCreatedSchema = z.object({
   occurredAt: z.string().datetime({ offset: true }).transform((value) => new Date(value)),
 });
 
-const businessPartnerCreatedSchema = z.object({
+/* customer-service'in partner.* event'leri: tek model, type alanı taşır.
+ * created/updated/type-changed aynı snapshot sözleşmesini paylaşır. */
+const partnerSnapshotSchema = z.object({
   id: z.string().uuid(),
   companyId: z.string().uuid(),
   name: z.string().min(1).max(255),
+  type: z.enum(["SUPPLIER", "CUSTOMER", "BOTH"]),
   isActive: z.boolean(),
+  occurredAt: z.string().datetime({ offset: true }).transform((value) => new Date(value)),
+});
+
+const partnerMergedSchema = z.object({
+  mergedPartnerId: z.string().uuid(),
+  survivorPartnerId: z.string().uuid(),
   occurredAt: z.string().datetime({ offset: true }).transform((value) => new Date(value)),
 });
 
@@ -39,10 +48,6 @@ const exchangeRateUpdatedSchema = z.object({
   occurredAt: z.string().datetime({ offset: true }).transform((value) => new Date(value)),
 });
 
-const businessPartnerSyncedSchema = businessPartnerCreatedSchema.extend({
-  type: z.enum(["SUPPLIER", "CUSTOMER", "BOTH"]),
-});
-
 const SCHEMAS: Readonly<Record<string, z.ZodType<Record<string, unknown>>>> = {
   "company.created": companyCreatedSchema,
   "company.updated": companyCreatedSchema,
@@ -53,18 +58,12 @@ const SCHEMAS: Readonly<Record<string, z.ZodType<Record<string, unknown>>>> = {
   "currency.activated": statusChangedSchema,
   "currency.deactivated": statusChangedSchema,
   "exchange-rate.updated": exchangeRateUpdatedSchema,
-  "supplier.created": businessPartnerCreatedSchema,
-  "supplier.updated": businessPartnerCreatedSchema,
-  "supplier.activated": statusChangedSchema,
-  "supplier.deactivated": statusChangedSchema,
-  "customer.created": businessPartnerCreatedSchema,
-  "customer.updated": businessPartnerCreatedSchema,
-  "customer.activated": statusChangedSchema,
-  "customer.deactivated": statusChangedSchema,
-  "business-partner.created": businessPartnerSyncedSchema,
-  "business-partner.updated": businessPartnerSyncedSchema,
-  "business-partner.activated": statusChangedSchema,
-  "business-partner.deactivated": statusChangedSchema,
+  "partner.created": partnerSnapshotSchema,
+  "partner.updated": partnerSnapshotSchema,
+  "partner.type-changed": partnerSnapshotSchema,
+  "partner.status-changed": statusChangedSchema,
+  "partner.deleted": statusChangedSchema,
+  "partner.merged": partnerMergedSchema,
 };
 
 export function parseConsumedEventPayload(
